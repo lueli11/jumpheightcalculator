@@ -1,7 +1,7 @@
 """SQLite. Videos und Keypoint-Arrays liegen als Dateien auf Disk, in der DB nur
 Pfade - Blobs in SQLite bringen hier nichts ausser einer grossen Datei.
 
-Keine Abstraktionsschicht ueber der DB: es gibt genau eine Implementierung, und
+Keine Abstraktionsschicht über der DB: es gibt genau eine Implementierung, und
 eine Schnittstelle mit einem Implementierer ist nur Verpackung.
 """
 
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS analysis (
     pipeline_version TEXT,
     result       TEXT,                    -- vollstaendiges Result als JSON
     quality      REAL,
-    h_e2         REAL,                    -- ausgelagert fuer Verlauf und CSV
+    h_e2         REAL,                    -- ausgelagert für Verlauf und CSV
     v0           REAL,
     created_at   TEXT NOT NULL,
     finished_at  TEXT
@@ -47,13 +47,13 @@ def connect(path: str | Path) -> sqlite3.Connection:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     # check_same_thread=False, weil FastAPI Sync-Dependencies im Threadpool
-    # erzeugt, der async-Endpunkt danach aber im Event-Loop-Thread laeuft. Sicher
+    # erzeugt, der async-Endpunkt danach aber im Event-Loop-Thread läuft. Sicher
     # ist das, weil jede Anfrage ihre eigene Verbindung bekommt und wieder
     # schliesst - geteilt wird nichts, die Verbindung wechselt nur einmal den
     # Thread innerhalb derselben Anfrage.
     con = sqlite3.connect(path, timeout=30.0, check_same_thread=False)
     con.row_factory = sqlite3.Row
-    # WAL, damit ein zweiter Upload nicht blockiert, waehrend der Worker schreibt.
+    # WAL, damit ein zweiter Upload nicht blockiert, während der Worker schreibt.
     con.execute("PRAGMA journal_mode=WAL")
     con.execute("PRAGMA foreign_keys=ON")
     con.executescript(SCHEMA)

@@ -41,31 +41,38 @@ export default function Upload() {
   return (
     <>
       <h1>jumpheightcalculator</h1>
-      <p className="sub">Sprunghoehe aus Video, Frame fuer Frame.</p>
+      <p className="sub">Sprunghöhe aus Video, Frame für Frame.</p>
 
       <form onSubmit={submit} className="panel">
         <div className="row">
           <input type="file" name="file" accept="video/*" required data-testid="file" />
           <input type="number" placeholder="Gewicht kg" value={mass} min={20} max={250}
-                 onChange={(e) => setMass(e.target.value)} style={{ width: 120 }} />
+                 onChange={(e) => setMass(e.target.value)} style={{ width: 120 }}
+                 title="Optional - nur für Impuls und mittlere Kraft" />
           <button type="submit" disabled={busy} data-testid="submit">
             {busy ? "laedt hoch..." : "Analysieren"}
           </button>
         </div>
       </form>
 
+      <p className="sub" style={{ marginTop: -8, fontSize: 14 }}>
+        Das Gewicht ist <b>optional</b>. Es wird nur für den Absprungimpuls und die
+        mittlere Kraft beim Abdruck gebraucht. Sprunghöhe, Absprunggeschwindigkeit
+        und Flugzeit kommen ohne aus.
+      </p>
+
       {warn && <div className="panel warn" data-testid="warning">{warn}</div>}
       {err && <div className="panel err" data-testid="error">{err}</div>}
 
       <h2>So aufnehmen</h2>
       <ul>
-        <li><b>Slo-Mo einschalten</b> - 240 fps wenn moeglich, mindestens 120.</li>
+        <li><b>Slo-Mo einschalten</b> - 240 fps wenn möglich, mindestens 120.</li>
         <li><b>Kurze Belichtung.</b> Hell aufnehmen, sonst verschmiert der Fuss.</li>
-        <li><b>Handy quer auf ein Stativ</b>, so hoch wie moeglich, 3-4 m Abstand.</li>
-        <li><b>Senkrecht zur Sprungebene</b> filmen, nicht vor- oder zurueckspringen.</li>
-        <li><b>Ganzer Koerper im Bild</b>, auch die Fuesse im Scheitelpunkt.</li>
+        <li><b>Handy quer auf ein Stativ</b>, so hoch wie möglich, 3-4 m Abstand.</li>
+        <li><b>Senkrecht zur Sprungebene</b> filmen, nicht vor- oder zurückspringen.</li>
+        <li><b>Ganzer Körper im Bild</b>, auch die Füsse im Scheitelpunkt.</li>
         <li><b>Enge Kleidung, kontrastreicher Boden.</b> Weite Hosen sind der
-            haeufigste Grund fuer schlechte Knoechel-Keypoints.</li>
+            haeufigste Grund für schlechte Knöchel-Keypoints.</li>
       </ul>
     </>
   );

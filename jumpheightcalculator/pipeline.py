@@ -1,26 +1,26 @@
-"""S4/S5 - Sub-Frame-Verfeinerung, Physik, Guete.
+"""S4/S5 - Sub-Frame-Verfeinerung, Physik, Güte.
 
-Die vier Hoehenschaetzer und was sie unterscheidet:
+Die vier Höhenschaetzer und was sie unterscheidet:
 
-  E1  g*t_f^2/8, t_f aus dem **Kontaktsignal**. Setzt gleiche Schwerpunkthoehe
+  E1  g*t_f^2/8, t_f aus dem **Kontaktsignal**. Setzt gleiche Schwerpunkthöhe
       bei Absprung und Landung voraus - man springt aber gestreckt ab und landet
-      gebeugt (R2). Ueberschaetzt darum systematisch; dient als Vergleichswert.
-  E2  Scheitel der Huefte-Parabel ueber der Huefthoehe zum Absprungzeitpunkt.
+      gebeugt (R2). Überschätzt darum systematisch; dient als Vergleichswert.
+  E2  Scheitel der Hüfte-Parabel über der Hüfthöhe zum Absprungzeitpunkt.
       **Referenzwert der App.**
-  E3  Dasselbe auf einem eigenen Fit des Ganzkoerper-Schwerpunkts (Winter 2009).
+  E3  Dasselbe auf einem eigenen Fit des Ganzkörper-Schwerpunkts (Winter 2009).
   E4  0.5*g*t_fall^2, nur die Fallphase (Scheitel bis Landung aus dem
       Kontaktsignal). Liegt systematisch bei E2 + Delta.
 
 Wichtig, damit es niemand "vereinfacht": **E2 ist identisch mit v0^2/(2g)**.
-Fuer jede Parabel gilt Scheitelhoehe-ueber-Startpunkt == v(t0)^2/(2a); das ist
-dieselbe Algebra, keine zweite Herleitung. Ein Schaetzer aus demselben Fit waere
+Für jede Parabel gilt Scheitelhöhe-über-Startpunkt == v(t0)^2/(2a); das ist
+dieselbe Algebra, keine zweite Herleitung. Ein Schätzer aus demselben Fit wäre
 also ein exaktes Duplikat von E2 und koennte per Konstruktion keinen Fit-Fehler
-aufdecken. Nur weil E3 auf **anderen Landmarks** fittet, ist |E2-E3| ueberhaupt
-ein Guetesignal - und genau darauf gatet R7.
+aufdecken. Nur weil E3 auf **anderen Landmarks** fittet, ist |E2-E3| überhaupt
+ein Gütesignal - und genau darauf gatet R7.
 
 Der teure Teil (`extract`) und der billige (`measure`) sind getrennt: eine
 Korrektur der Ereignisframes um +/-1 im Review-Screen darf nicht bedeuten, dass
-MediaPipe erneut ueber das ganze Video laeuft.
+MediaPipe erneut über das ganze Video läuft.
 """
 
 from __future__ import annotations
@@ -41,10 +41,10 @@ MIN_FLIGHT_S, MAX_FLIGHT_S = 0.15, 1.10
 MIN_FLIGHT_FRAMES = 10
 MIN_R2 = 0.98
 
-# Das Guetemass ist |E2-E3|, nicht die Spannweite ueber alle vier Schaetzer.
+# Das Gütemass ist |E2-E3|, nicht die Spannweite über alle vier Schätzer.
 # E1 und E4 weichen von E2 um Delta ab - die Landeasymmetrie. Die ist gemessene
 # Physiologie, kein Messfehler, und gehoert darum nicht in ein Fehlermass.
-# Nur E2 und E3 messen dieselbe Groesse auf verschiedenen Landmarks.
+# Nur E2 und E3 messen dieselbe Grösse auf verschiedenen Landmarks.
 MAX_DISAGREE_M = 0.04
 MAX_CUBIC_T = 4.0
 MAX_SHIFT_RESID_PX = 0.5
@@ -62,12 +62,12 @@ class TrackData:
     Review-Screen als auch die Neuberechnung nach einer Korrektur.
     """
     t: np.ndarray            # (N,) Zeitstempel [s], aus dem Container (R1)
-    xy: np.ndarray           # (N, 33, 2) alle Landmarks [px] - fuer das Skelett-Overlay
+    xy: np.ndarray           # (N, 33, 2) alle Landmarks [px] - für das Skelett-Overlay
     width: int               # Arbeitsaufloesung, in der xy gilt
     height: int
-    hip_y: np.ndarray        # (N,) Huefthoehe [px], Bildkoordinaten
-    com_y: np.ndarray        # (N,) Schwerpunkthoehe [px]
-    ankle_y: np.ndarray      # (N,) fuer die Anzeige
+    hip_y: np.ndarray        # (N,) Hüfthöhe [px], Bildkoordinaten
+    com_y: np.ndarray        # (N,) Schwerpunkthöhe [px]
+    ankle_y: np.ndarray      # (N,) für die Anzeige
     contact: np.ndarray      # (N,) Kontaktsignal c(n) in [0,1], 1 = Kontakt
     confidence: np.ndarray   # (N,) mittlere Keypoint-Konfidenz
     n0: int                  # Flugfenster aus dem HMM
@@ -114,6 +114,9 @@ class Result:
     rsi: float | None
     impulse: float | None
     mean_force: float | None
+    # Die Masse gehört ins Ergebnis, nicht nur in die Rechnung: ohne sie lässt
+    # sich später nicht sagen, mit welchem Gewicht Impuls und Kraft entstanden.
+    mass_kg: float | None
     scale: float
     a_px: float
     r2_hip: float
@@ -142,10 +145,10 @@ class Result:
 
 
 def _coarse_air(track: posemod.PoseTrack, t: np.ndarray) -> tuple[int, int, int]:
-    """Grobes Flugfenster aus der Knoechelhoehe.
+    """Grobes Flugfenster aus der Knöchelhöhe.
 
-    Nur zur Platzierung des ROI und als Referenz fuer den leeren Boden -
-    **nicht** als Timing (R3). Der Knoechel steigt beim Abdruck bereits, waehrend
+    Nur zur Platzierung des ROI und als Referenz für den leeren Boden -
+    **nicht** als Timing (R3). Der Knöchel steigt beim Abdruck bereits, während
     die Zehe noch aufliegt, und meldet den Absprung dadurch deutlich zu frueh.
     """
     ank = track.pt(posemod.ANKLE)[:, 1]
@@ -154,9 +157,9 @@ def _coarse_air(track: posemod.PoseTrack, t: np.ndarray) -> tuple[int, int, int]
     lift = np.nan_to_num(base - ank, nan=-1e9)
     air = lift > 0.05 * bs
 
-    # Genommen wird der Abschnitt mit dem **hoechsten** Knoechelhub, nicht der
-    # laengste. Nach der Landung geht die Person weg, und dieses Weggehen ist
-    # leicht laenger als der Sprung selbst - auf einem Ausschnitt wurde so das
+    # Genommen wird der Abschnitt mit dem **höchsten** Knöchelhub, nicht der
+    # längste. Nach der Landung geht die Person weg, und dieses Weggehen ist
+    # leicht länger als der Sprung selbst - auf einem Ausschnitt wurde so das
     # Fenster 252-360 statt 148-241 gewaehlt und der Fit kruemmte sich nach oben.
     # Hoch springt man nur einmal; herumlaufen kann man beliebig lange.
     best, best_lift = None, -np.inf
@@ -175,7 +178,7 @@ def _coarse_air(track: posemod.PoseTrack, t: np.ndarray) -> tuple[int, int, int]
             i += 1
     if best is None:
         raise Refusal(
-            "Kein Sprung gefunden: die Knoechel heben nie fuer 0.15-1.10 s deutlich "
+            "Kein Sprung gefunden: die Knöchel heben nie für 0.15-1.10 s deutlich "
             "vom Boden ab. Ist die Person im Bild und der ganze Sprung aufgenommen?"
         )
     n0, n1 = best
@@ -190,7 +193,7 @@ def extract(path: str | Path, *, scale: float = 0.25, model: str = "full") -> Tr
     if track.found.mean() < 0.8:
         raise Refusal(
             f"Person nur in {track.found.mean()*100:.0f} % der Frames erkannt. "
-            f"Bitte den ganzen Koerper im Bild halten und enge Kleidung tragen."
+            f"Bitte den ganzen Körper im Bild halten und enge Kleidung tragen."
         )
 
     c_n0, c_n1, stance_end = _coarse_air(track, info.t)
@@ -213,10 +216,10 @@ def extract(path: str | Path, *, scale: float = 0.25, model: str = "full") -> Tr
     # Kontaktsignal: 1 = Kontakt.
     #
     # Nur Belegung und Spaltanteil, **nicht** die Differenzenergie zum Vorframe.
-    # Die ist waehrend des Abdrucks gross, weil der Fuss abrollt, und zieht das
+    # Die ist während des Abdrucks gross, weil der Fuss abrollt, und zieht das
     # Signal damit vor dem eigentlichen Abheben nach unten. Gemessen legte sie
     # den Absprung sieben Frames zu frueh und blies dadurch E2 auf 90 cm auf -
-    # ueber E1 von 82 cm, was fuer einen freien Flug unmoeglich ist (R2 verlangt
+    # über E1 von 82 cm, was für einen freien Flug unmöglich ist (R2 verlangt
     # die umgekehrte Reihenfolge).
     c = np.ones(sig.occupancy.size)
     c[lo:hi] = fuse({"occupancy": sig.occupancy[lo:hi], "gap": sig.gap[lo:hi]},
@@ -242,9 +245,9 @@ def extract(path: str | Path, *, scale: float = 0.25, model: str = "full") -> Tr
 
 def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = None,
             seed: int = 0, n0: int | None = None, n1: int | None = None) -> Result:
-    """Der billige Teil: Fit, Schaetzer, Guete. Laeuft in Millisekunden.
+    """Der billige Teil: Fit, Schätzer, Güte. Läuft in Millisekunden.
 
-    `n0`/`n1` ueberschreiben das Flugfenster - so rechnet eine +/-1-Frame-Korrektur
+    `n0`/`n1` überschreiben das Flugfenster - so rechnet eine +/-1-Frame-Korrektur
     aus dem Review-Screen neu, ohne dass die Pose neu bestimmt werden muss.
     """
     corrected = n0 is not None or n1 is not None
@@ -274,12 +277,12 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
 
     # R4 - Randframes raus: dort ist der Punkt weder Kontakt noch sauberer Flug,
     # und auf echtem Material zusaetzlich bewegungsunscharf. Auf dem synthetischen
-    # Video war ein einziger solcher Frame 0.14 % Hoehenfehler.
+    # Video war ein einziger solcher Frame 0.14 % Höhenfehler.
     #
     # Bewusst **ungeglaettet** in den Fit: der Least-Squares-Fit mittelt das
-    # Rauschen bereits ueber alle Flugframes, eine Vorglaettung bringt an der
-    # Hoehe nachweislich nichts (gemessen 71.81 gegen 71.84 cm), korreliert aber
-    # die Residuen (0.75 -> 0.90) und macht die Guetemasse unbrauchbar.
+    # Rauschen bereits über alle Flugframes, eine Vorglaettung bringt an der
+    # Höhe nachweislich nichts (gemessen 71.81 gegen 71.84 cm), korreliert aber
+    # die Residuen (0.75 -> 0.90) und macht die Gütemasse unbrauchbar.
     sel = slice(n0 + 1, n1 - 1)
     tt = t[sel]
     fit_hip = fit_parabola(tt, td.hip_y[sel], seed=seed)
@@ -300,8 +303,8 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
     disagreement = abs(h_e2 - h_e3)
 
     # Kontaktzeit: nur beim Drop Jump eine Messgroesse. Beim CMJ steht die Person
-    # vorher einfach da, und der Block waere die gesamte Stehzeit - gemessen
-    # 7525 ms, was als "Kontaktzeit" ausgegeben schlicht falsch waere.
+    # vorher einfach da, und der Block wäre die gesamte Stehzeit - gemessen
+    # 7525 ms, was als "Kontaktzeit" ausgegeben schlicht falsch wäre.
     k = n0 - 1
     while k > 0 and td.contact[k] >= 0.5:
         k -= 1
@@ -328,7 +331,7 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
 
     warn: list[str] = []
     if td.fps < 120:
-        warn.append(f"Nur {td.fps:.0f} fps - fuer eine Fortschrittsmessung "
+        warn.append(f"Nur {td.fps:.0f} fps - für eine Fortschrittsmessung "
                     f"grenzwertig, bitte in Slo-Mo aufnehmen.")
     if np.isfinite(td.shift_residual) and td.shift_residual > MAX_SHIFT_RESID_PX:
         warn.append(f"Kamera wackelt (Restversatz {td.shift_residual:.2f} px) - das "
@@ -338,36 +341,36 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
 
     if fit_hip.r2 < MIN_R2:
         raise Refusal(
-            f"Die Huefte folgt keiner sauberen Wurfparabel (R2 = {fit_hip.r2:.4f}, "
+            f"Die Hüfte folgt keiner sauberen Wurfparabel (R2 = {fit_hip.r2:.4f}, "
             f"noetig > {MIN_R2}). Meist heisst das weite Kleidung oder eine teilweise "
             f"verdeckte Person."
         )
     if disagreement > MAX_DISAGREE_M:
         raise Refusal(
-            f"Huefte und Koerperschwerpunkt kommen auf {h_e2*100:.1f} cm gegen "
+            f"Hüfte und Körperschwerpunkt kommen auf {h_e2*100:.1f} cm gegen "
             f"{h_e3*100:.1f} cm - {disagreement*100:.1f} cm auseinander (Grenze "
-            f"{MAX_DISAGREE_M*100:.0f} cm). Die Keypoints sind zu unsicher fuer eine "
+            f"{MAX_DISAGREE_M*100:.0f} cm). Die Keypoints sind zu unsicher für eine "
             f"Messung."
         )
     if h_e1 < h_e2 - 0.005:
-        # R2 verlangt, dass die Flugzeitmethode *ueber*schaetzt: man springt
-        # gestreckt ab und landet gebeugt, die Fallphase dauert also laenger als
-        # die Steigphase. Ist E1 kleiner als E2, ist die Huefte im freien Flug
-        # angeblich hoeher gestiegen, als die Flugzeit erlaubt - unmoeglich. In
+        # R2 verlangt, dass die Flugzeitmethode *über*schätzt: man springt
+        # gestreckt ab und landet gebeugt, die Fallphase dauert also länger als
+        # die Steigphase. Ist E1 kleiner als E2, ist die Hüfte im freien Flug
+        # angeblich höher gestiegen, als die Flugzeit erlaubt - unmöglich. In
         # der Praxis heisst es, der Absprung liegt zu frueh und die Parabel wird
-        # davor zurueck-extrapoliert. Genau so kam auf dem ersten echten Video
+        # davor zurück-extrapoliert. Genau so kam auf dem ersten echten Video
         # E2 = 90 cm gegen E1 = 82 cm zustande.
         raise Refusal(
-            f"Widerspruch in der Physik: die Flugzeit erlaubt hoechstens "
-            f"{h_e1*100:.1f} cm, die Huefte steigt aber auf {h_e2*100:.1f} cm. Der "
+            f"Widerspruch in der Physik: die Flugzeit erlaubt höchstens "
+            f"{h_e1*100:.1f} cm, die Hüfte steigt aber auf {h_e2*100:.1f} cm. Der "
             f"Absprungzeitpunkt liegt zu frueh."
         )
     if fit_hip.cubic_t > MAX_CUBIC_T:
         raise Refusal(
             f"Die Flugbahn ist keine reine Parabel (kubischer Anteil t = "
-            f"{fit_hip.cubic_t:.1f}). Typisch fuer Objektivverzeichnung bei tief "
-            f"stehender Kamera oder fuer eine Bewegung auf die Kamera zu. Stelle das "
-            f"Handy hoeher und springe senkrecht zur Kameraachse."
+            f"{fit_hip.cubic_t:.1f}). Typisch für Objektivverzeichnung bei tief "
+            f"stehender Kamera oder für eine Bewegung auf die Kamera zu. Stelle das "
+            f"Handy höher und springe senkrecht zur Kameraachse."
         )
 
     quality = float(np.clip(
@@ -386,7 +389,7 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
         takeoff_frame=n0 + (t0 - t[n0]) / max(t[min(n0 + 1, last)] - t[n0], 1e-9),
         landing_frame=n1c + (t1 - t[n1c]) / max(t[min(n1c + 1, last)] - t[n1c], 1e-9),
         contact_time=contact_time, push_time=push_time, rsi=rsi,
-        impulse=impulse, mean_force=mean_force,
+        impulse=impulse, mean_force=mean_force, mass_kg=mass_kg,
         scale=s, a_px=fit_hip.a_px, r2_hip=fit_hip.r2, r2_com=fit_com.r2,
         rms_hip_px=fit_hip.rms_resid, cubic_t=fit_hip.cubic_t,
         n_flight_frames=n_air, mean_confidence=conf,
@@ -400,7 +403,7 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
 def analyze(path: str | Path, *, jump_type: str = "cmj", mass_kg: float | None = None,
             seed: int = 0, scale: float = 0.25, model: str = "full",
             track_out: str | Path | None = None) -> Result:
-    """Bequemlichkeit fuer die CLI: extrahieren und messen in einem Zug."""
+    """Bequemlichkeit für die CLI: extrahieren und messen in einem Zug."""
     td = extract(path, scale=scale, model=model)
     if track_out is not None:
         td.save(track_out)

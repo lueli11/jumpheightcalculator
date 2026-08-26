@@ -2,7 +2,7 @@
 
 Eine Analyse dauert Minuten - das darf keinen HTTP-Request blockieren. Der
 Worker ist bewusst duenn: er ruft dieselbe `pipeline`-Funktion wie die CLI und
-schreibt das Ergebnis in dieselbe Datenbank. Ein zweiter Codepfad waere eine
+schreibt das Ergebnis in dieselbe Datenbank. Ein zweiter Codepfad wäre eine
 zweite Fehlerquelle, und Gate P2.1 verlangt ohnehin identische Zahlen.
 """
 
@@ -31,7 +31,7 @@ def _make_proxy(src: str, dest: Path, width: int, height: int) -> None:
 
     Im Browser laesst sich ein 4K-Video nicht frame-genau steppen. Das Proxy hat
     dieselbe Frameanzahl und dieselben Zeitstempel (`-fps_mode passthrough`) und
-    liegt in genau der Aufloesung, in der auch die Landmarks gelten - das Overlay
+    liegt in genau der Auflösung, in der auch die Landmarks gelten - das Overlay
     braucht dadurch keine Umrechnung, in der sich ein Fehler verstecken koennte.
     """
     try:
@@ -59,11 +59,11 @@ def run_analysis(analysis_id: str, *, data_dir: Path | None = None) -> str:
         if row is None:
             raise KeyError(f"Analyse {analysis_id} unbekannt")
 
-        # Job atomar uebernehmen. Ohne die Bedingung auf `queued` koennen zwei
+        # Job atomar übernehmen. Ohne die Bedingung auf `queued` koennen zwei
         # Worker dieselbe Zeile greifen und beide rechnen - der langsamere
-        # ueberschreibt danach das Ergebnis des schnelleren. Genau das ist beim
+        # überschreibt danach das Ergebnis des schnelleren. Genau das ist beim
         # Testen passiert: dieselbe Datei kam einmal als 74.0 cm und einmal als
-        # Verweigerung heraus, obwohl `extract` fuer sich reproduzierbar ist.
+        # Verweigerung heraus, obwohl `extract` für sich reproduzierbar ist.
         claimed = con.execute(
             "UPDATE analysis SET status='running' WHERE id=? AND status IN "
             "('queued','failed')", (analysis_id,))
@@ -103,7 +103,7 @@ def run_analysis(analysis_id: str, *, data_dir: Path | None = None) -> str:
 
 
 async def analyse_job(ctx, analysis_id: str) -> str:
-    """arq ruft asynchron; die Arbeit selbst ist CPU-gebunden und laeuft synchron.
+    """arq ruft asynchron; die Arbeit selbst ist CPU-gebunden und läuft synchron.
 
     Der Worker faehrt mit `max_jobs=1` - zwei parallele Analysen wuerden sich auf
     einer CPU nur gegenseitig ausbremsen. Ein zweiter Upload blockiert trotzdem

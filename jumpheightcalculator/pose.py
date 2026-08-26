@@ -2,7 +2,7 @@
 
 Liefert Trajektorien und die Bezugsgroessen, mit denen alle Schwellwerte
 normiert werden. Das Timing kommt ausdruecklich **nicht** von hier (R3): beim
-Abdruck streckt sich der Fuss, der Knoechel steigt also bereits, waehrend die
+Abdruck streckt sich der Fuss, der Knöchel steigt also bereits, während die
 Zehe noch aufliegt. Der Pose-Zweig sagt, *wo* man hinschauen muss.
 """
 
@@ -28,8 +28,8 @@ ANKLE = (27, 28)
 HEEL = (29, 30)
 TOE = (31, 32)
 
-# Segmentmassen und Schwerpunktlagen nach Winter (2009), Anteile der Koerpermasse.
-# Gebraucht fuer E3: im Flug folgt nur der *Schwerpunkt* exakt einer Parabel,
+# Segmentmassen und Schwerpunktlagen nach Winter (2009), Anteile der Körpermasse.
+# Gebraucht für E3: im Flug folgt nur der *Schwerpunkt* exakt einer Parabel,
 # jeder einzelne Landmark ist Schwerpunkt plus Relativbewegung.
 _SEGMENTS = (
     (0.081, "ear", None, 0.0),
@@ -61,7 +61,7 @@ class PoseTrack:
         return np.isfinite(self.xy[:, HIP[0], 0])
 
     def com(self) -> np.ndarray:
-        """Ganzkoerper-Schwerpunkt nach Winter, (N,2)."""
+        """Ganzkörper-Schwerpunkt nach Winter, (N,2)."""
         named = {"ear": self.pt(EAR), "shoulder": self.pt(SHOULDER),
                  "elbow": self.pt(ELBOW), "wrist": self.pt(WRIST),
                  "hip": self.pt(HIP), "knee": self.pt(KNEE),
@@ -73,13 +73,13 @@ class PoseTrack:
         return acc / sum(s[0] for s in _SEGMENTS)
 
     def body_scale(self) -> float:
-        """Koerperlaenge Schulter-Knoechel [px]. Normiert alle Schwellwerte,
-        damit nichts von Aufloesung oder Kameraabstand abhaengt."""
+        """Körperlänge Schulter-Knöchel [px]. Normiert alle Schwellwerte,
+        damit nichts von Auflösung oder Kameraabstand abhaengt."""
         d = np.linalg.norm(self.pt(SHOULDER) - self.pt(ANKLE), axis=1)
         return float(np.nanmedian(d))
 
     def ground_line(self, before: int) -> float:
-        """Bodenlinie = Median der Knoechelhoehe ueber die Standphase.
+        """Bodenlinie = Median der Knöchelhöhe über die Standphase.
 
         `before` ist der Frame, vor dem gemittelt wird - die Gegenbewegung und
         alles danach bleiben draussen.
@@ -87,16 +87,16 @@ class PoseTrack:
         ank = self.pt(ANKLE)[:before, 1]
         ank = ank[np.isfinite(ank)]
         if ank.size < 5:
-            raise ValueError("Standphase zu kurz fuer eine Bodenlinie.")
+            raise ValueError("Standphase zu kurz für eine Bodenlinie.")
         return float(np.median(ank))
 
 
 def smooth(y: np.ndarray, window: int = 9, order: int = 2) -> np.ndarray:
     """Savitzky-Golay statt gleitendem Mittel.
 
-    Ein gleitendes Mittel ist ein Tiefpass und daempft genau die Kruemmung, die
+    Ein gleitendes Mittel ist ein Tiefpass und daempft genau die Krümmung, die
     spaeter gefittet wird - es wuerde die Schwerkraft kleiner erscheinen lassen
-    und ueber R5 den Massstab verfaelschen. Savitzky-Golay legt lokal ein Polynom
+    und über R5 den Massstab verfaelschen. Savitzky-Golay legt lokal ein Polynom
     und laesst die zweite Ableitung stehen.
     """
     n = y.size
@@ -111,7 +111,7 @@ def track(info: VideoInfo, *, model: str = "full", scale: float = 0.25,
     """Keypoints je Frame.
 
     Bewusst im IMAGE-Modus, nicht im VIDEO-Modus: der VIDEO-Modus glaettet
-    zeitlich (`smooth_landmarks`), und das ist ein Tiefpass auf der Kruemmung,
+    zeitlich (`smooth_landmarks`), und das ist ein Tiefpass auf der Krümmung,
     die R4 fittet. Ausserdem nimmt `detect_for_video` ganzzahlige Millisekunden -
     bei 240 fps sind das 4.17 ms je Frame. Unsere Zeitachse kommt ausschliesslich
     aus den Container-PTS.

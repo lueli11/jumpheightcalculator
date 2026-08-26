@@ -1,7 +1,7 @@
 """S2 - Pixel-Zweig.
 
 Hier entsteht das Timing (R3). Der Pose-Zweig kann es nicht liefern: beim
-Abdruck streckt sich der Fuss, der Knoechel steigt also schon, waehrend die Zehe
+Abdruck streckt sich der Fuss, der Knöchel steigt also schon, während die Zehe
 noch aufliegt - bei 240 fps liegen dazwischen zwanzig Frames und mehr. Gemessen
 wird deshalb am Auflagepunkt selbst, in einem schmalen Streifen unter dem
 Fussballen.
@@ -30,12 +30,12 @@ class ContactSignals:
 
 
 def estimate_shift(frames: list[np.ndarray], person_box) -> tuple[np.ndarray, float]:
-    """Globale Kamerabewegung ueber Hintergrund-Features (ORB + RANSAC-Median).
+    """Globale Kamerabewegung über Hintergrund-Features (ORB + RANSAC-Median).
 
     Bewusst nur Translation statt voller Homographie: auf texturarmem Hintergrund
     ist eine Homographie unterbestimmt und erzeugt dann scheinbare Vertikal-
     bewegung - also genau das Signal, das hier gemessen werden soll. Der
-    Restversatz wird zurueckgegeben und oben geprueft.
+    Restversatz wird zurückgegeben und oben geprüft.
     """
     orb = cv2.ORB_create(1200)
     ref = cv2.cvtColor(frames[0], cv2.COLOR_BGR2GRAY)
@@ -46,9 +46,9 @@ def estimate_shift(frames: list[np.ndarray], person_box) -> tuple[np.ndarray, fl
     shifts = np.zeros((len(frames), 2), np.float64)
     if d_ref is None or len(k_ref) < 12:
         # Ohne Maske erneut versuchen. Auf einem texturarmen Hintergrund (Turnhalle,
-        # glatte Wand) bleiben sonst zu wenige Ecken uebrig und die Schaetzung faellt
+        # glatte Wand) bleiben sonst zu wenige Ecken uebrig und die Schätzung fällt
         # ganz aus - die Wackel-Warnung koennte dann nie ausloesen. Die Person ist
-        # ein kleiner Teil des Bildes, ihre Bewegung faellt beim Median heraus.
+        # ein kleiner Teil des Bildes, ihre Bewegung fällt beim Median heraus.
         mask = None
         k_ref, d_ref = orb.detectAndCompute(ref, None)
         if d_ref is None or len(k_ref) < 12:
@@ -97,7 +97,7 @@ def contact_signals(info: VideoInfo, track: PoseTrack, *, stance_end: int,
 
     Ausgewertet werden **zwei** Streifen, einer an der Absprung- und einer an der
     Landestelle. Gemessen an einem echten Sprung zum Korb landet die Person rund
-    eine Fusslaenge weiter vorne: der Absprung-Streifen kommt nach der Landung
+    eine Fusslänge weiter vorne: der Absprung-Streifen kommt nach der Landung
     nur noch auf 16 statt 96 Belegungseinheiten, und der Wiederkontakt wird
     dadurch viel zu spaet erkannt - gemessen 1167 ms Flugzeit statt rund 680 ms.
     Das Kontaktsignal ist deshalb das Maximum beider Streifen: Kontakt heisst
@@ -108,7 +108,7 @@ def contact_signals(info: VideoInfo, track: PoseTrack, *, stance_end: int,
     if landing_stance is not None and landing_stance.stop > landing_stance.start:
         rois.append(_roi_from_stance(track, landing_stance))
 
-    # R3 - das Timing entsteht hier, also wird hier auch in voller Aufloesung
+    # R3 - das Timing entsteht hier, also wird hier auch in voller Auflösung
     # gelesen. Der Pose-Zweig arbeitet auf einem Viertel, weil ihm das reicht;
     # der Spalt zwischen Zehe und Boden ist dort aber nur noch Bruchteile eines
     # Pixels breit. Statt des ganzen 4K-Bildes wandert nur der Streifen durch die

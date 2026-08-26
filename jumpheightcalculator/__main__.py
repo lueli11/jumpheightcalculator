@@ -27,19 +27,19 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--blur", type=float, default=0.0, help="Belichtung als Anteil von dt")
     s.add_argument("--seed", type=int, default=0)
 
-    v = sub.add_parser("validate", help="Pipeline gegen reine Physik pruefen")
+    v = sub.add_parser("validate", help="Pipeline gegen reine Physik prüfen")
     vs = v.add_subparsers(dest="kind", required=True)
-    vb = vs.add_parser("ball", help="Ballwurf-Test: die Kruemmung muss g ergeben")
+    vb = vs.add_parser("ball", help="Ballwurf-Test: die Krümmung muss g ergeben")
     vb.add_argument("video")
     vb.add_argument("--px-per-m", type=float, default=None,
-                    help="bekannter Massstab; nur zum Gegenrechnen der Kruemmung")
+                    help="bekannter Massstab; nur zum Gegenrechnen der Krümmung")
     vb.add_argument("--json", action="store_true")
 
     an = sub.add_parser("analyze", help="Sprung aus einem Video messen")
     an.add_argument("video")
     an.add_argument("--jump-type", default="cmj", choices=["cmj", "sj", "drop", "hops"])
     an.add_argument("--mass-kg", type=float, default=None,
-                    help="fuer Impuls und mittlere Kraft; ohne Masse entfallen beide")
+                    help="für Impuls und mittlere Kraft; ohne Masse entfallen beide")
     an.add_argument("--model", default="full", choices=["full", "heavy"])
     an.add_argument("--scale", type=float, default=0.25,
                     help="Arbeitsaufloesung als Anteil der Originalgroesse")
@@ -62,9 +62,9 @@ def main(argv: list[str] | None = None) -> int:
             if a.json:
                 print(json.dumps(r.to_dict(), indent=2))
                 return 0
-            print(f"Sprunghoehe (Referenz E2) {r.h_e2*100:8.1f} cm")
+            print(f"Sprunghöhe (Referenz E2) {r.h_e2*100:8.1f} cm")
             print(f"  E1 aus der Flugzeit     {r.h_e1*100:8.1f} cm   "
-                  f"(ueberschaetzt um Bauart, R2)")
+                  f"(überschätzt um Bauart, R2)")
             print(f"  E3 Schwerpunkt          {r.h_e3*100:8.1f} cm   "
                   f"Uneinigkeit {r.disagreement*100:.1f} cm")
             print(f"  E4 nur Fallphase        {r.h_e4*100:8.1f} cm")
@@ -85,7 +85,7 @@ def main(argv: list[str] | None = None) -> int:
             print()
             print(f"Absprungframe {r.takeoff_frame:.2f}   Landeframe {r.landing_frame:.2f}"
                   f"   Flugframes {r.n_flight_frames}")
-            print(f"Guete {r.quality:.2f}   R2 {r.r2_hip:.4f}   {r.fps_measured:.0f} fps   "
+            print(f"Güte {r.quality:.2f}   R2 {r.r2_hip:.4f}   {r.fps_measured:.0f} fps   "
                   f"Pipeline {r.pipeline_version}")
             for w in r.warnings:
                 print(f"WARNUNG: {w}")
@@ -98,7 +98,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  gemessene fps {info.measured_fps:.2f}  (Container meldet "
                   f"{info.nominal_fps:.2f})")
             if info.measured_fps < 120:
-                print("  WARNUNG: unter 120 fps. Fuer eine Fortschrittsmessung zu grob - "
+                print("  WARNUNG: unter 120 fps. Für eine Fortschrittsmessung zu grob - "
                       "bitte in Slo-Mo aufnehmen.")
             return 0
 
@@ -110,21 +110,21 @@ def main(argv: list[str] | None = None) -> int:
             if a.json:
                 print(json.dumps(d, indent=2))
             else:
-                print(f"Hoehe (Scheitel)     {r.h_e2*100:8.2f} cm")
-                print(f"Hoehe (Flugzeit)     {r.h_e1*100:8.2f} cm")
+                print(f"Höhe (Scheitel)     {r.h_e2*100:8.2f} cm")
+                print(f"Höhe (Flugzeit)     {r.h_e1*100:8.2f} cm")
                 print(f"Flugzeit             {r.t_f*1000:8.1f} ms")
                 print(f"v0                   {r.v0:8.3f} m/s")
                 print(f"Massstab (aus g)     {1/r.scale:8.1f} px/m")
                 if a.px_per_m:
                     c = r.a_px / a.px_per_m
-                    print(f"Kruemmung            {c:8.3f} m/s^2   "
+                    print(f"Krümmung            {c:8.3f} m/s^2   "
                           f"(soll {G}, Abweichung {c-G:+.3f})")
                 print(f"R2 {r.r2:.5f}  RMS {r.rms_resid_px:.2f} px  "
                       f"kubisch t={r.cubic_t:.2f}  Flugframes {r.n_flight_frames}")
             return 0
     except (IngestError, FitError, Refusal) as e:
         # R7: Grund nennen, keine Zahl erfinden.
-        print(f"Keine Messung moeglich: {e}", file=sys.stderr)
+        print(f"Keine Messung möglich: {e}", file=sys.stderr)
         return 2
     return 1
 

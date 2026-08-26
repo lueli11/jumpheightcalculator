@@ -1,7 +1,7 @@
 """FastAPI vor der CLI-Logik.
 
 Kein Auth, kein Multi-Tenancy: ein Nutzer im eigenen Netz (Nicht-Ziel Nr. 1).
-Die Analyse laeuft im arq-Worker, nie im Request.
+Die Analyse läuft im arq-Worker, nie im Request.
 """
 
 from __future__ import annotations
@@ -31,13 +31,13 @@ REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
 JUMP_TYPES = ("cmj", "sj", "drop", "hops")
 
 # Unter dieser Bildrate ist der Fehler laut Fehlerrechnung mehrere Zentimeter -
-# fuer eine Fortschrittsmessung unbrauchbar. Der Upload wird trotzdem angenommen,
+# für eine Fortschrittsmessung unbrauchbar. Der Upload wird trotzdem angenommen,
 # aber der Nutzer erfaehrt es sofort statt erst am Ergebnis.
 FPS_WARN = 120.0
 
 app = FastAPI(title="jumpheightcalculator", version=PIPELINE_VERSION)
 
-# Der Browser laedt das Video **direkt** hierher, nicht ueber den Next-Proxy.
+# Der Browser laedt das Video **direkt** hierher, nicht über den Next-Proxy.
 # Gemessen riss ein 134-MB-Upload durch den Proxy mit ECONNRESET ab: die Datei
 # kam an, der Browser sah trotzdem einen Fehler und startete die Analyse nie.
 # Ein Puffer weniger, ein Fehlerfall weniger. Offene Herkunft ist vertretbar -
@@ -128,7 +128,7 @@ async def upload_video(file: UploadFile = File(...), con=Depends(get_db)):
 
     warning = None
     if info.measured_fps < FPS_WARN:
-        warning = (f"Nur {info.measured_fps:.0f} fps gemessen. Fuer eine "
+        warning = (f"Nur {info.measured_fps:.0f} fps gemessen. Für eine "
                    f"Fortschrittsmessung sind mindestens {FPS_WARN:.0f} fps noetig - "
                    f"bitte in Slo-Mo aufnehmen.")
     return VideoOut(video_id=vid, filename=file.filename or dest.name,
@@ -188,11 +188,11 @@ def get_track(aid: str, con=Depends(get_db)):
 
 @app.get("/api/analyses/{aid}/video")
 def get_proxy_video(aid: str, con=Depends(get_db)):
-    """Herunterskaliertes Vorschauvideo fuer den Review-Screen.
+    """Herunterskaliertes Vorschauvideo für den Review-Screen.
 
     Das Original ist 4K und 139 MB - im Browser ist damit kein frame-genaues
-    Steppen moeglich. Das Proxy hat dieselbe Frameanzahl und dieselben
-    Zeitstempel, nur weniger Pixel, und liegt in derselben Aufloesung wie die
+    Steppen möglich. Das Proxy hat dieselbe Frameanzahl und dieselben
+    Zeitstempel, nur weniger Pixel, und liegt in derselben Auflösung wie die
     Landmarks: das Overlay passt damit ohne Umrechnung.
     """
     row = con.execute("SELECT proxy_path FROM analysis WHERE id=?", (aid,)).fetchone()
@@ -205,7 +205,7 @@ def get_proxy_video(aid: str, con=Depends(get_db)):
 def correct_analysis(aid: str, body: CorrectIn, con=Depends(get_db)):
     """Korrigierte Ereignisframes - rechnet neu und markiert das Ergebnis.
 
-    Laeuft ohne Worker: der teure Teil (Pose) steckt im gespeicherten Track, die
+    Läuft ohne Worker: der teure Teil (Pose) steckt im gespeicherten Track, die
     Neuberechnung dauert Millisekunden.
     """
     row = con.execute("SELECT * FROM analysis WHERE id=?", (aid,)).fetchone()

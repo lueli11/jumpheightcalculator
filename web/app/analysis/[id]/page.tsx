@@ -33,7 +33,7 @@ export default function Review() {
   const overlay = useRef<HTMLCanvasElement>(null);
   const signal = useRef<HTMLCanvasElement>(null);
 
-  // Polling, bis die Analyse fertig ist. Sie laeuft im Worker, nicht im Request.
+  // Polling, bis die Analyse fertig ist. Sie läuft im Worker, nicht im Request.
   useEffect(() => {
     let stop = false;
     const tick = async () => {
@@ -55,8 +55,8 @@ export default function Review() {
     return () => { stop = true; };
   }, [id]);
 
-  // Frame-Stepper ueber die PTS-Tabelle, nicht ueber eine angenommene Framerate:
-  // die Zeitstempel sind variabel, currentTime = n/fps waere schlicht falsch (R1).
+  // Frame-Stepper über die PTS-Tabelle, nicht über eine angenommene Framerate:
+  // die Zeitstempel sind variabel, currentTime = n/fps wäre schlicht falsch (R1).
   useEffect(() => {
     if (track && video.current) video.current.currentTime = track.t[frame] ?? 0;
   }, [frame, track]);
@@ -73,8 +73,8 @@ export default function Review() {
       if (g) {
         g.clearRect(0, 0, c.width, c.height);
 
-        // Gefittete Parabel ueber das Flugfenster - genau die Kurve, aus der die
-        // Zahl kommt. Deckt sie sich nicht mit der Huefte, stimmt die Zahl nicht.
+        // Gefittete Parabel über das Flugfenster - genau die Kurve, aus der die
+        // Zahl kommt. Deckt sie sich nicht mit der Hüfte, stimmt die Zahl nicht.
         const r = result as Record<string, number>;
         g.strokeStyle = "#3ed0de"; g.lineWidth = 2; g.setLineDash([6, 4]);
         g.beginPath();
@@ -106,7 +106,7 @@ export default function Review() {
 
     const s = signal.current;
     if (s) {
-      // Kontaktsignal auf derselben Achse wie das Flugfenster darueber.
+      // Kontaktsignal auf derselben Achse wie das Flugfenster darüber.
       const W = s.width = Math.max(600, s.clientWidth * 2);
       const H = s.height = 120;
       const g = s.getContext("2d");
@@ -158,16 +158,16 @@ export default function Review() {
   if (error) {
     return (
       <>
-        <h1>Keine Messung moeglich</h1>
+        <h1>Keine Messung möglich</h1>
         <div className="panel err" data-testid="refusal">{error}</div>
-        <a href="/">zurueck</a>
+        <a href="/">zurück</a>
       </>
     );
   }
   if (status !== "ready" || !track || !result) {
     return (
       <>
-        <h1>Analyse laeuft</h1>
+        <h1>Analyse läuft</h1>
         <p className="sub" data-testid="status">Status: {status}</p>
       </>
     );
@@ -181,7 +181,7 @@ export default function Review() {
       <h1>Ergebnis</h1>
       <p className="sub">
         <span className="big mono" data-testid="height">{cm(result.h_e2)}</span>
-        <span className="unit"> cm Sprunghoehe</span>
+        <span className="unit"> cm Sprunghöhe</span>
       </p>
 
       {/* Seitenverhaeltnis aus den Trackdaten, nicht aus dem geladenen Video:
@@ -214,9 +214,9 @@ export default function Review() {
         <button disabled={busy} onClick={() => correct(0, +1)}>+1</button>
       </div>
 
-      <h2>Alle Schaetzer</h2>
+      <h2>Alle Schätzer</h2>
       <div className="grid">
-        <div><dt>E2 Huefte (Referenz)</dt><dd className="mono">{cm(result.h_e2)} cm</dd></div>
+        <div><dt>E2 Hüfte (Referenz)</dt><dd className="mono">{cm(result.h_e2)} cm</dd></div>
         <div><dt>E1 Flugzeit</dt><dd className="mono">{cm(result.h_e1)} cm</dd></div>
         <div><dt>E3 Schwerpunkt</dt><dd className="mono">{cm(result.h_e3)} cm</dd></div>
         <div><dt>E4 Fallphase</dt><dd className="mono">{cm(result.h_e4)} cm</dd></div>
@@ -224,8 +224,34 @@ export default function Review() {
         <div><dt>Flugzeit</dt><dd className="mono">
           {typeof result.t_f === "number" ? (result.t_f * 1000).toFixed(0) : "-"} ms</dd></div>
         <div><dt>Delta Landung</dt><dd className="mono">{cm(result.delta)} cm</dd></div>
-        <div><dt>Guete</dt><dd className="mono">{num(result.quality, 2)}</dd></div>
+        <div><dt>Abdruckdauer</dt><dd className="mono">
+          {typeof result.push_time === "number" ? (result.push_time * 1000).toFixed(0) : "-"} ms</dd></div>
+        <div><dt>Güte</dt><dd className="mono">{num(result.quality, 2)}</dd></div>
       </div>
+
+      {/* Impuls und mittlere Kraft gibt es nur mit Körpermasse - ohne sie fehlen
+          schlicht die Eingangsgrössen. Keine Wattzahlen: Peak Power braucht den
+          Kraft-Zeit-Verlauf einer Kraftmessplatte. */}
+      {typeof result.impulse === "number" ? (
+        <>
+          <h2>Mit deinem Gewicht</h2>
+          <div className="grid">
+            <div><dt>Absprungimpuls</dt><dd className="mono">
+              {num(result.impulse, 1)} Ns</dd></div>
+            <div><dt>Mittlere Kraft</dt><dd className="mono">
+              {num(result.mean_force, 0)} N</dd></div>
+            {typeof result.mean_force === "number" && typeof result.mass_kg === "number" ? (
+              <div><dt>entspricht</dt><dd className="mono">
+                {(result.mean_force / (result.mass_kg * 9.81)).toFixed(2)} Körpergewichte</dd></div>
+            ) : null}
+          </div>
+        </>
+      ) : (
+        <p className="sub" style={{ fontSize: 14 }}>
+          Ohne Gewicht keine Impuls- und Kraftwerte - Höhe, Geschwindigkeit und
+          Flugzeit brauchen es nicht.
+        </p>
+      )}
 
       <p className="sub mono" style={{ marginTop: 10, fontSize: 13 }}>
         R2 {num(result.r2_hip, 4)} &middot; |E2-E3| {cm(result.disagreement)} cm &middot;{" "}

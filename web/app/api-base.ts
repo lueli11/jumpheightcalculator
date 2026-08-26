@@ -1,8 +1,8 @@
 /** Basis-URL der API.
  *
- * Der Browser spricht die API direkt an statt ueber den Next-Proxy: ein
+ * Der Browser spricht die API direkt an statt über den Next-Proxy: ein
  * 134-MB-Upload durch die Rewrite-Schicht riss reproduzierbar mit ECONNRESET ab,
- * weil der Koerper zweimal gepuffert wird. In Compose laeuft die API auf Port
+ * weil der Körper zweimal gepuffert wird. In Compose läuft die API auf Port
  * 8000 desselben Hosts, deshalb der Rueckfall auf die aktuelle Hostadresse.
  */
 export function apiBase(): string {

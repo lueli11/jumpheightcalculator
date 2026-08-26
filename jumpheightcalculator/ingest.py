@@ -3,7 +3,7 @@
 R1: Die Zeitachse kommt aus den Praesentationszeitstempeln (PTS) des Containers,
 niemals aus einer angenommenen Framerate. Smartphone-Videos sind fast nie exakt
 konstant getaktet, und Slo-Mo wird vom Betriebssystem oft schon verlangsamt
-exportiert. Der Fehler schlaegt quadratisch in die Hoehe durch, weil
+exportiert. Der Fehler schlaegt quadratisch in die Höhe durch, weil
 
     h = g * v0_px^2 / (2 * a_px^2)
 
@@ -20,10 +20,10 @@ from typing import Iterator
 
 import numpy as np
 
-# B2 - Plausibilitaetsfenster fuer das mediane Frame-Intervall.
+# B2 - Plausibilitaetsfenster für das mediane Frame-Intervall.
 # PTS zu lesen ist notwendig, aber nicht hinreichend: eine bereits verlangsamt
-# exportierte Slo-Mo-Aufnahme traegt PTS ueber der 8-fachen Realzeit und liefert
-# damit lautlos die 64-fache Hoehe. Unter 20 fps ist nichts messbar, ueber
+# exportierte Slo-Mo-Aufnahme traegt PTS über der 8-fachen Realzeit und liefert
+# damit lautlos die 64-fache Höhe. Unter 20 fps ist nichts messbar, über
 # 1000 fps existiert keine Handykamera - beides ist also ein Zeitbasis-Fehler.
 MIN_FPS = 20.0
 MAX_FPS = 1000.0
@@ -47,7 +47,7 @@ class VideoInfo:
     width: int             # Ausgabebreite nach Rotation
     height: int
     rotation: int          # Grad, aus der Display-Matrix
-    nominal_fps: float     # gemeldete Framerate - nur fuer Anzeige und Warnungen
+    nominal_fps: float     # gemeldete Framerate - nur für Anzeige und Warnungen
 
     @property
     def n_frames(self) -> int:
@@ -101,7 +101,7 @@ def probe(path: str | Path) -> VideoInfo:
     if len(vals) < 3:
         raise IngestError(
             f"Nur {len(vals)} Frame-Zeitstempel lesbar - der Container traegt keine "
-            f"brauchbaren PTS. Ohne echte Zeitstempel ist keine Messung moeglich (R1)."
+            f"brauchbaren PTS. Ohne echte Zeitstempel ist keine Messung möglich (R1)."
         )
     t = np.asarray(vals, dtype=np.float64)
     if np.any(np.diff(t) <= 0):
@@ -115,12 +115,12 @@ def probe(path: str | Path) -> VideoInfo:
 
 
 def _check_timebase(info: VideoInfo) -> None:
-    """B2 - erste Haelfte: liegt das Frame-Intervall ueberhaupt im Bereich einer Kamera?"""
+    """B2 - erste Haelfte: liegt das Frame-Intervall überhaupt im Bereich einer Kamera?"""
     fps = info.measured_fps
     if not np.isfinite(fps) or not (MIN_FPS <= fps <= MAX_FPS):
         raise IngestError(
             f"Gemessene Framerate {fps:.1f} fps liegt ausserhalb {MIN_FPS:.0f}-{MAX_FPS:.0f} fps. "
-            f"Das ist keine Aufnahme, sondern eine kaputte Zeitbasis - typisch fuer ein "
+            f"Das ist keine Aufnahme, sondern eine kaputte Zeitbasis - typisch für ein "
             f"Slo-Mo, das bereits verlangsamt exportiert wurde. Exportiere das Video mit "
             f"Originalgeschwindigkeit."
         )
@@ -139,8 +139,8 @@ def iter_frames(info: VideoInfo, *, scale: float = 1.0,
 
     Bewusst ffmpeg-Rohpipe statt cv2.VideoCapture: VideoCapture normalisiert bei
     variabler Framerate auf ein festes Raster und dupliziert oder verwirft dabei
-    Frames. Die Zuordnung Frame-Index <-> PTS waere damit still verschoben und R1
-    ausgehebelt, ohne dass es irgendwo auffaellt.
+    Frames. Die Zuordnung Frame-Index <-> PTS wäre damit still verschoben und R1
+    ausgehebelt, ohne dass es irgendwo auffällt.
 
     `-fps_mode passthrough` ist dabei nicht optional, sondern der ganze Punkt:
     ohne die Angabe wandelt ffmpeg selbst nach CFR und dupliziert Frames, bis das
@@ -150,7 +150,7 @@ def iter_frames(info: VideoInfo, *, scale: float = 1.0,
     """
     if crop is not None:
         # Ausschnitt in Originalpixeln, vor dem Skalieren. So laesst sich ein
-        # schmaler Streifen in voller Aufloesung lesen, ohne das ganze 4K-Bild
+        # schmaler Streifen in voller Auflösung lesen, ohne das ganze 4K-Bild
         # durch die Pipe zu schieben.
         cx, cy, cw, ch = crop
         cw, ch = max(2, cw // 2 * 2), max(2, ch // 2 * 2)
@@ -189,5 +189,5 @@ def iter_frames(info: VideoInfo, *, scale: float = 1.0,
     if n != info.n_frames:
         raise IngestError(
             f"{n} decodierte Frames gegen {info.n_frames} Zeitstempel - die Zuordnung "
-            f"Frame zu Zeit waere verschoben. {err.strip()[:200]}"
+            f"Frame zu Zeit wäre verschoben. {err.strip()[:200]}"
         )

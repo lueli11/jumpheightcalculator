@@ -23,19 +23,19 @@ import numpy as np
 from . import G
 
 # Zeitbasis der geschriebenen Datei: 1 us. Bei 240 fps sind das 0.02 % eines
-# Frame-Abstands, also weit unter dem Jitter, den P0.3 prueft.
+# Frame-Abstands, also weit unter dem Jitter, den P0.3 prüft.
 TIME_BASE = Fraction(1, 1_000_000)
 
 
 @dataclass(frozen=True)
 class Truth:
-    """Ground Truth. Alles, was die Pipeline zurueckrechnen koennen muss."""
-    h: float                 # Scheitelhoehe ueber Absprungniveau [m]
+    """Ground Truth. Alles, was die Pipeline zurückrechnen koennen muss."""
+    h: float                 # Scheitelhöhe über Absprungniveau [m]
     t_f: float               # Flugzeit [s]
     v0: float                # Absprunggeschwindigkeit [m/s]
     t_takeoff: float         # [s], relativ zum ersten Frame
     t_land: float            # [s]
-    px_per_m: float          # der Massstab, den R5 aus der Physik zurueckgewinnen muss
+    px_per_m: float          # der Massstab, den R5 aus der Physik zurückgewinnen muss
     g: float
     fps_nominal: float
     jitter: float
@@ -59,10 +59,10 @@ def generate(
     seed: int = 0,
     crf: int = 0,
 ) -> Truth:
-    """Schreibt Video + `<name>.truth.json` und gibt die Wahrheit zurueck.
+    """Schreibt Video + `<name>.truth.json` und gibt die Wahrheit zurück.
 
     `jitter` streut die Frame-Abstaende um +/- diesen Anteil - damit laesst sich
-    pruefen, ob R1 wirklich verdrahtet ist. `blur` ist die Belichtungsdauer als
+    prüfen, ob R1 wirklich verdrahtet ist. `blur` ist die Belichtungsdauer als
     Anteil des Frame-Abstands.
     """
     out = Path(out)
@@ -103,7 +103,7 @@ def generate(
     #
     # Nicht cv2.VideoWriter: das kennt nur eine feste Framerate und wuerde die
     # Jitter-Zeitachse stillschweigend auf ein gleichmaessiges Raster legen -
-    # P0.3 pruefte dann nichts. Nicht der ffmpeg-concat-Demuxer: dessen
+    # P0.3 prüfte dann nichts. Nicht der ffmpeg-concat-Demuxer: dessen
     # `duration`-Angaben werden bei Bild-Input ignoriert, gemessen kollabiert
     # alles auf das 25-fps-Standardraster. PyAV setzt die PTS je Frame direkt.
     out.parent.mkdir(parents=True, exist_ok=True)

@@ -1,7 +1,7 @@
-"""Worker ohne Redis - fuer Entwicklungsmaschinen, auf denen kein Redis laeuft.
+"""Worker ohne Redis - für Entwicklungsmaschinen, auf denen kein Redis läuft.
 
 Pollt die Datenbank nach `queued`-Analysen und ruft dieselbe `run_analysis`, die
-auch arq aufruft. In Produktion laeuft stattdessen `arq jumpheightcalculator.worker.WorkerSettings`;
+auch arq aufruft. In Produktion läuft stattdessen `arq jumpheightcalculator.worker.WorkerSettings`;
 dieser Weg existiert nur, damit sich der Review-Screen lokal end-to-end testen
 laesst, wo Docker und WSL fehlen.
 """

@@ -1,6 +1,6 @@
 # jumpheightcalculator
 
-Misst Flugzeit, Absprunggeschwindigkeit und Sprunghoehe aus einem Handyvideo.
+Misst Flugzeit, Absprunggeschwindigkeit und Sprunghöhe aus einem Handyvideo.
 
 ## Deployen
 
@@ -11,18 +11,18 @@ Danach: Web-Oberflaeche auf Port **3050**, API auf Port **8000** (Doku unter
 
     WEB_PORT=3050 API_PORT=8000 docker compose up --build -d
 
-Port 3000 ist bewusst nicht die Voreinstellung - auf einem Dokploy-Host laeuft
-dort Dokploy selbst. Wer `API_PORT` aendert, muss auch `NEXT_PUBLIC_API_BASE`
+Port 3000 ist bewusst nicht die Voreinstellung - auf einem Dokploy-Host läuft
+dort Dokploy selbst. Wer `API_PORT` ändert, muss auch `NEXT_PUBLIC_API_BASE`
 setzen, sonst sucht der Browser die API weiterhin auf 8000.
 Vier Container: `web`, `api`, `worker`, `redis`. Videos und Datenbank liegen im
 Volume `jumpheightcalculator-data`.
 
-Der Browser spricht die API **direkt** auf Port 8000 an, nicht ueber die
-Web-App. Laeuft alles auf demselben Host, funktioniert das ohne Konfiguration.
+Der Browser spricht die API **direkt** auf Port 8000 an, nicht über die
+Web-App. Läuft alles auf demselben Host, funktioniert das ohne Konfiguration.
 Liegt die API woanders, setze `NEXT_PUBLIC_API_BASE` beim Bauen des
 `web`-Containers.
 
-Beide Ports muessen vom Handy aus erreichbar sein.
+Beide Ports müssen vom Handy aus erreichbar sein.
 
 ## Ohne Docker
 
@@ -42,19 +42,19 @@ Maschinen ohne Redis.
 ## Aufnehmen
 
 Slo-Mo ab 120 fps (240 ist besser), kurze Belichtung, Handy quer auf ein Stativ
-so hoch wie moeglich, 3-4 m Abstand, senkrecht zur Sprungebene, ganzer Koerper
+so hoch wie möglich, 3-4 m Abstand, senkrecht zur Sprungebene, ganzer Körper
 im Bild, enge Kleidung, kontrastreicher Boden.
 
 ## Was gemessen wird
 
-`E2` ist der Referenzwert: der Scheitel der gefitteten Huefte-Parabel. `E1` aus
-der Flugzeit ueberschaetzt bauartbedingt, weil man gestreckt abspringt und
+`E2` ist der Referenzwert: der Scheitel der gefitteten Hüfte-Parabel. `E1` aus
+der Flugzeit überschätzt bauartbedingt, weil man gestreckt abspringt und
 gebeugt landet - `Delta` sagt, um wie viel. `E3` fittet dieselbe Bewegung auf dem
-Ganzkoerper-Schwerpunkt; `|E2-E3|` ist das Guetemass. `E4` nutzt nur die
+Ganzkörper-Schwerpunkt; `|E2-E3|` ist das Gütemass. `E4` nutzt nur die
 Fallphase.
 
 Keine Wattzahlen: Peak Power braucht den Kraft-Zeit-Verlauf einer
-Kraftmessplatte. Impuls und mittlere Kraft gibt es mit Koerpermasse.
+Kraftmessplatte. Impuls und mittlere Kraft gibt es mit Körpermasse.
 
 Bei schlechter Aufnahme gibt es keine Zahl, sondern den Grund.
 

@@ -1,7 +1,7 @@
 """S3 - Fusion zum Kontaktsignal.
 
 Die Signale beider Zweige werden auf [0,1] normiert und zu einem Kontaktsignal
-c(n) zusammengefuehrt. Darueber laeuft ein Zwei-Zustands-HMM mit Viterbi statt
+c(n) zusammengefuehrt. Darüber läuft ein Zwei-Zustands-HMM mit Viterbi statt
 einer harten Schwelle: eine Schwelle flackert an verrauschten Frames und
 zerlegt den Flug in Stuecke. Viterbi erzwingt eine global konsistente
 Segmentierung.
@@ -39,7 +39,7 @@ def fuse(parts: dict[str, np.ndarray], weights: dict[str, float]) -> np.ndarray:
 def viterbi(c: np.ndarray, *, p_stay: float = 0.97, floor: float = 1e-4) -> np.ndarray:
     """Zwei-Zustands-HMM (Flug / Kontakt), Viterbi-Dekodierung.
 
-    Emission direkt aus c(n), Uebergaenge mit hoher Selbsthaltewahrscheinlichkeit -
+    Emission direkt aus c(n), Übergaenge mit hoher Selbsthaltewahrscheinlichkeit -
     das bestraft Zustandswechsel und verhindert das Flackern.
     """
     c = np.clip(np.asarray(c, float), floor, 1 - floor)
@@ -79,9 +79,9 @@ def flight_window(states: np.ndarray) -> tuple[int, int]:
 
 
 def crossing_time(t: np.ndarray, c: np.ndarray, n: int, *, level: float = 0.5) -> float:
-    """Zeitpunkt, zu dem c(n) am Uebergang bei `n` die Schwelle schneidet.
+    """Zeitpunkt, zu dem c(n) am Übergang bei `n` die Schwelle schneidet.
 
-    Linear zwischen den beiden Frames interpoliert - der Uebergang liegt fast nie
+    Linear zwischen den beiden Frames interpoliert - der Übergang liegt fast nie
     genau auf einem Frame (R4).
     """
     if n <= 0 or n >= c.size:

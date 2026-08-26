@@ -1,12 +1,12 @@
-"""S4/S5 - Parabel-Fit, Selbstkalibrierung, Hoehenschaetzer, Guete.
+"""S4/S5 - Parabel-Fit, Selbstkalibrierung, Höhenschaetzer, Güte.
 
-Alle Bildkoordinaten sind Pixel mit **y nach unten**. Ein steigender Koerper hat
+Alle Bildkoordinaten sind Pixel mit **y nach unten**. Ein steigender Körper hat
 also fallendes y, und die Schwerkraft zeigt in +y: der quadratische Koeffizient
 ist positiv.
 
 R4: Der Absprung liegt immer zwischen zwei Frames. Frames zu zaehlen quantisiert
 die Flugzeit; weil h quadratisch von t abhaengt, verdoppelt sich der relative
-Fehler auf dem Weg zur Hoehe. Darum ein Fit ueber alle sauberen Flugframes und
+Fehler auf dem Weg zur Höhe. Darum ein Fit über alle sauberen Flugframes und
 Ereigniszeitpunkte als Fliesskommazahlen.
 """
 
@@ -31,7 +31,7 @@ class ParabolaFit:
     c2: float
     t_ref: float
     t: np.ndarray            # alle angebotenen Zeiten
-    y: np.ndarray            # alle angebotenen Hoehen
+    y: np.ndarray            # alle angebotenen Höhen
     inliers: np.ndarray      # bool-Maske der verwendeten Punkte
     r2: float
     rms_resid: float         # [px]
@@ -43,13 +43,13 @@ class ParabolaFit:
 
     @property
     def a_px(self) -> float:
-        """Kruemmung [px/s^2], positiv nach unten."""
+        """Krümmung [px/s^2], positiv nach unten."""
         return 2.0 * self.c2
 
     @property
     def scale(self) -> float:
         """R5 - Selbstkalibrierung: der Massstab kommt aus der Physik, nicht vom
-        Nutzer. Die Kruemmung der Flugparabel *muss* 9.81 m/s^2 entsprechen,
+        Nutzer. Die Krümmung der Flugparabel *muss* 9.81 m/s^2 entsprechen,
         also ist s = g / a_px [m/px]. Kein Massband, kein Referenzobjekt."""
         if self.a_px <= 0:
             raise FitError(
@@ -77,10 +77,10 @@ class ParabolaFit:
         return float(self.y_at(self.t_apex))
 
     def roots_at(self, y_level: float) -> tuple[float, float]:
-        """Die beiden Zeitpunkte, zu denen die Bahn die Hoehe `y_level` schneidet.
+        """Die beiden Zeitpunkte, zu denen die Bahn die Höhe `y_level` schneidet.
 
         Das sind die Ereigniszeitpunkte als Fliesskommazahlen (R4) - nicht der
-        naechstgelegene Frame.
+        nächstgelegene Frame.
         """
         disc = self.c1 * self.c1 - 4.0 * self.c2 * (self.c0 - y_level)
         if disc <= 0:
@@ -98,13 +98,13 @@ def fit_parabola(t: np.ndarray, y: np.ndarray, *, seed: int = 0,
                  min_points: int = 8) -> ParabolaFit:
     """RANSAC-Parabel mit anschliessendem Least-Squares auf den Inliern.
 
-    Der RNG-Seed ist festgesetzt: ohne ihn waere dasselbe Video nicht bitgleich
+    Der RNG-Seed ist festgesetzt: ohne ihn wäre dasselbe Video nicht bitgleich
     reproduzierbar, und Gate P2.1 (API-Ergebnis identisch zur CLI) nicht erreichbar.
     """
     t = np.asarray(t, float)
     y = np.asarray(y, float)
     if t.size != y.size:
-        raise FitError("t und y haben verschiedene Laengen.")
+        raise FitError("t und y haben verschiedene Längen.")
     if t.size < min_points:
         raise FitError(
             f"Nur {t.size} verwertbare Punkte erfasst (mindestens {min_points} noetig). "
@@ -172,8 +172,8 @@ def _cubic_t_stat(u: np.ndarray, y: np.ndarray) -> float:
 
     Eine echte Wurfparabel hat keine. Eine radiale Objektivverzeichnung macht aus
     ihr eine leicht verbogene Kurve - genau das passiert, wenn die Kamera tief
-    steht und die Huefte weit ausserhalb der Bildmitte sitzt. Das verfaelscht die
-    Kruemmung und ueber R5 direkt den Massstab, ohne dass R^2 nennenswert faellt.
+    steht und die Hüfte weit ausserhalb der Bildmitte sitzt. Das verfaelscht die
+    Krümmung und über R5 direkt den Massstab, ohne dass R^2 nennenswert fällt.
     """
     if u.size < 6:
         return 0.0
@@ -195,11 +195,11 @@ def _cubic_t_stat(u: np.ndarray, y: np.ndarray) -> float:
         return 0.0
     t = abs(coef[0]) / se
 
-    # Korrektur fuer autokorrelierte Residuen.
+    # Korrektur für autokorrelierte Residuen.
     #
     # Eine gewoehnliche t-Statistik setzt unabhaengige Residuen voraus. Bei einer
     # Trajektorie sind sie das nie: benachbarte Frames zeigen dieselbe Szene, und
-    # ein Pose-Modell traegt seinen Fehler ueber Frames hinweg mit. Gemessen liegt
+    # ein Pose-Modell traegt seinen Fehler über Frames hinweg mit. Gemessen liegt
     # die Autokorrelation bei Lag 1 auf echtem Material bei +0.75 - es gibt also
     # rund siebenmal weniger unabhaengige Punkte als Frames, und ein naiver Test
     # schlaegt an, wo nichts ist (gemessen t = 4.5 auf einer sauberen Bahn).
