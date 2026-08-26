@@ -147,7 +147,8 @@ def _track_with_drift(drift: float):
         t=t, xy=np.zeros((n, 33, 2), np.float32), width=540, height=960,
         hip_y=y, com_y=y, ankle_y=y + 150, contact=contact,
         confidence=np.full(n, 0.9), n0=n0, n1=n1, stance_end=n0 - 30, fps=fps,
-        shift_residual=0.1, body_scale_px=400.0, scale_drift=drift)
+        shift_residual=0.1, body_scale_px=400.0, scale_drift=drift,
+        coarse_n0=n0, coarse_n1=n1)
 
 
 def test_perspective_drift_is_refused():
@@ -167,3 +168,15 @@ def test_small_drift_is_accepted():
     from jumpheightcalculator.pipeline import measure
     r = measure(_track_with_drift(0.03))
     assert r.h_e2 == pytest.approx(0.45, abs=0.02)
+
+
+def test_contact_and_body_must_agree():
+    """Sprung mit Anlauf: der Messstreifen ist leer, weil die Person weggelaufen
+    ist, nicht weil sie fliegt. Gemessen 137 gegen 76 Frames - daraus eine Hoehe
+    zu rechnen hiesse raten."""
+    from jumpheightcalculator.pipeline import Refusal, measure
+    td = _track_with_drift(0.0)
+    import dataclasses
+    td = dataclasses.replace(td, coarse_n0=td.n0 + 30, coarse_n1=td.n1 - 30)
+    with pytest.raises(Refusal, match="widersprechen sich"):
+        measure(td)

@@ -71,6 +71,16 @@ def pose_scale(width: int) -> float:
 # der Parabel wird bedeutungslos und die Selbstkalibrierung (R5) ungueltig.
 MAX_SCALE_DRIFT = 0.12
 
+# Kontaktsignal (Fuss) und Koerperbewegung (Knoechelhub) schaetzen das Flugfenster
+# unabhaengig voneinander. Nach R3 ist die Knoechelversion systematisch zu lang -
+# der Knoechel steigt beim Abdruck schon, waehrend die Zehe noch aufliegt - aber
+# sie muessen in derselben Groessenordnung liegen. Auf einem sauberen Video sind
+# es 93 gegen 95 Frames. Bei einem Sprung mit Anlauf mass das Kontaktsignal 137
+# gegen 76: der Streifen war leer, weil die Person weggelaufen war, nicht weil
+# sie flog. Wo die beiden so weit auseinanderliegen, ist das Timing nicht zu
+# gebrauchen - und eine Hoehe daraus waere geraten.
+CONTACT_VS_BODY_RANGE = (0.6, 1.45)
+
 
 class Refusal(RuntimeError):
     """R7 - lieber keinen Wert als einen falschen, und immer mit Grund."""
@@ -92,8 +102,10 @@ class TrackData:
     ankle_y: np.ndarray      # (N,) für die Anzeige
     contact: np.ndarray      # (N,) Kontaktsignal c(n) in [0,1], 1 = Kontakt
     confidence: np.ndarray   # (N,) mittlere Keypoint-Konfidenz
-    n0: int                  # Flugfenster aus dem HMM
+    n0: int                  # Flugfenster aus dem HMM (Kontaktsignal, R3)
     n1: int
+    coarse_n0: int           # Flugfenster aus dem Knoechelhub - Gegenprobe
+    coarse_n1: int
     stance_end: int
     fps: float
     shift_residual: float
@@ -110,7 +122,10 @@ class TrackData:
             t=d["t"], xy=d["xy"], width=int(d["width"]), height=int(d["height"]),
             hip_y=d["hip_y"], com_y=d["com_y"], ankle_y=d["ankle_y"],
             contact=d["contact"], confidence=d["confidence"],
-            n0=int(d["n0"]), n1=int(d["n1"]), stance_end=int(d["stance_end"]),
+            n0=int(d["n0"]), n1=int(d["n1"]),
+            coarse_n0=int(d["coarse_n0"]) if "coarse_n0" in d else int(d["n0"]),
+            coarse_n1=int(d["coarse_n1"]) if "coarse_n1" in d else int(d["n1"]),
+            stance_end=int(d["stance_end"]),
             fps=float(d["fps"]), shift_residual=float(d["shift_residual"]),
             body_scale_px=float(d["body_scale_px"]),
             scale_drift=float(d["scale_drift"]) if "scale_drift" in d else 0.0,
@@ -289,7 +304,7 @@ def extract(path: str | Path, *, scale: float | None = None,
         com_y=track.com()[:n, 1],
         ankle_y=track.pt(posemod.ANKLE)[:n, 1],
         contact=c[:n], confidence=conf,
-        n0=n0, n1=n1, stance_end=stance_end,
+        n0=n0, n1=n1, coarse_n0=c_n0, coarse_n1=c_n1, stance_end=stance_end,
         fps=info.measured_fps, shift_residual=sig.shift_residual,
         body_scale_px=track.body_scale(), scale_drift=drift,
     )
@@ -315,6 +330,21 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
             f"bestimmbar. Stelle die Kamera seitlich auf, 3-4 m entfernt, und "
             f"springe senkrecht zur Blickrichtung - ohne vor- oder zurückzuspringen."
         )
+
+    # Gegenprobe des Timings, solange nichts von Hand gesetzt wurde.
+    body = td.coarse_n1 - td.coarse_n0
+    foot = td.n1 - td.n0
+    if n0 is None and n1 is None and body > 0:
+        ratio = foot / body
+        if not (CONTACT_VS_BODY_RANGE[0] <= ratio <= CONTACT_VS_BODY_RANGE[1]):
+            raise Refusal(
+                f"Kontaktsignal und Körperbewegung widersprechen sich: der Fuss "
+                f"meldet {foot} Flugframes, der Knöchelhub {body}. Typisch für "
+                f"einen Sprung mit Anlauf - der Messstreifen liegt dort, wo der "
+                f"Fuss abspringt, und ist beim Anlaufen schon leer, bevor der "
+                f"Sprung beginnt. Springe aus dem Stand, oder verschiebe Absprung "
+                f"und Landung im Review-Screen von Hand anhand der Kurve."
+            )
 
     corrected = n0 is not None or n1 is not None
     n0 = td.n0 if n0 is None else int(n0)

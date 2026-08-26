@@ -103,6 +103,15 @@ def contact_signals(info: VideoInfo, track: PoseTrack, *, stance_end: int,
     Das Kontaktsignal ist deshalb das Maximum beider Streifen: Kontakt heisst
     "irgendwo steht ein Fuss", nicht "an genau dieser Stelle".
     """
+    # Der Streifen sitzt an der Standposition vor der Gegenbewegung.
+    #
+    # Versucht und wieder verworfen: ihn an den Fuss im Moment des Absprungs zu
+    # legen (0.15 s davor). Das sollte Spruenge mit Anlauf retten, half dort aber
+    # nicht - beim Anlauf ist der Streifen auch vor dem Aufsetzen leer, das Signal
+    # bleibt mehrdeutig - und verschlechterte den Normalfall messbar: auf einem
+    # sauberen Sprung kippte damit E1 unter E2, was fuer einen freien Flug
+    # unmoeglich ist. Spruenge mit Anlauf faengt stattdessen die Gegenprobe
+    # zwischen Kontaktsignal und Knoechelhub in der Pipeline ab.
     pre_from = max(0, stance_end - max(10, int(0.5 * info.measured_fps)))
     rois = [_roi_from_stance(track, slice(pre_from, max(pre_from + 1, stance_end)))]
     if landing_stance is not None and landing_stance.stop > landing_stance.start:
