@@ -4,8 +4,14 @@ Misst Flugzeit, Absprunggeschwindigkeit und Sprunghoehe aus einem Handyvideo.
 
 ## Deployen
 
-    git clone <repo> && cd jumpheightcalculator
+Hinter einem Reverse Proxy (Dokploy, Traefik, NPM) - die Container
+veroeffentlichen bewusst keine Host-Ports, das Routing macht der Proxy:
+
     docker compose up --build -d
+
+Ohne Proxy, direkt auf Ports:
+
+    docker compose -f docker-compose.yml -f docker-compose.local.yml up --build -d
 
 Danach: Web-Oberflaeche auf Port **3000**, API auf Port **8000** (Doku unter `/docs`).
 Vier Container: `web`, `api`, `worker`, `redis`. Videos und Datenbank liegen im
