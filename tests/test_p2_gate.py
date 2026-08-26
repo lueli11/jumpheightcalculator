@@ -79,6 +79,17 @@ async def test_health(client):
 
 
 @pytest.mark.anyio
+async def test_root_says_what_this_is(client):
+    """Die Wurzel darf nicht mit einem nackten 404 antworten - wer die
+    API-Adresse im Browser aufruft, will wissen, ob der Dienst laeuft."""
+    r = await client.get("/")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "ok"
+    assert body["endpunkte"]["doku"] == "/docs"
+
+
+@pytest.mark.anyio
 async def test_upload_rejects_unreadable_file(client):
     r = await client.post("/api/videos",
                           files={"file": ("kaputt.mp4", b"nicht wirklich ein video")})

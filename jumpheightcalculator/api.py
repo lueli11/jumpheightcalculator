@@ -258,3 +258,21 @@ def sessions(jump_type: str | None = None, as_csv: bool = False, con=Depends(get
 @app.get("/api/health")
 def health():
     return {"status": "ok", "pipeline_version": PIPELINE_VERSION}
+
+
+@app.get("/")
+def root():
+    """Auskunft auf der Wurzel.
+
+    Ohne diese Route antwortet FastAPI hier mit {"detail":"Not Found"} - formal
+    richtig, aber wer die API-Adresse im Browser aufruft, will wissen, ob sie
+    laeuft, und nicht raten muessen, ob der 404 vom Dienst oder vom Proxy kommt.
+    """
+    return {
+        "name": "jumpheightcalculator",
+        "status": "ok",
+        "pipeline_version": PIPELINE_VERSION,
+        "hinweis": "Das ist die API, nicht die Weboberflaeche.",
+        "endpunkte": {"doku": "/docs", "health": "/api/health",
+                      "verlauf": "/api/sessions"},
+    }
