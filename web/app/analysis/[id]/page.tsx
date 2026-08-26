@@ -47,6 +47,14 @@ export default function Review() {
         setTrack(tr); setN0(tr.n0); setN1(tr.n1); setFrame(tr.n0);
       } else if (r.status === "failed") {
         setError(r.error);
+        // Auch bei einer Verweigerung den Track holen: die teure Extraktion ist
+        // gelaufen, und der Review-Screen soll die Ereignisframes von Hand
+        // korrigierbar machen statt in einer Sackgasse zu enden.
+        const tr: Track | null = await fetch(`${apiBase()}/api/analyses/${id}/track`)
+          .then((x) => (x.ok ? x.json() : null))
+          .catch(() => null);
+        if (stop || !tr) return;
+        setTrack(tr); setN0(tr.n0); setN1(tr.n1); setFrame(tr.n0);
       } else {
         setTimeout(tick, 2000);
       }
@@ -62,12 +70,12 @@ export default function Review() {
   }, [frame, track]);
 
   const draw = useCallback(() => {
-    if (!track || !result) return;
+    if (!track) return;
     const a0 = n0 ?? track.n0;
     const a1 = n1 ?? track.n1;
 
     const c = overlay.current;
-    if (c) {
+    if (c && result) {
       c.width = track.width; c.height = track.height;
       const g = c.getContext("2d");
       if (g) {
@@ -75,7 +83,7 @@ export default function Review() {
 
         // Gefittete Parabel über das Flugfenster - genau die Kurve, aus der die
         // Zahl kommt. Deckt sie sich nicht mit der Hüfte, stimmt die Zahl nicht.
-        const r = result as Record<string, number>;
+        const r = result as unknown as Record<string, number>;
         g.strokeStyle = "#3ed0de"; g.lineWidth = 2; g.setLineDash([6, 4]);
         g.beginPath();
         for (let i = a0; i <= a1 && i < track.t.length; i++) {
@@ -155,7 +163,7 @@ export default function Review() {
     setBusy(false);
   }
 
-  if (error) {
+  if (error && !track) {
     return (
       <>
         <h1>Keine Messung möglich</h1>
@@ -164,7 +172,7 @@ export default function Review() {
       </>
     );
   }
-  if (status !== "ready" || !track || !result) {
+  if (!track || (status !== "ready" && !error)) {
     return (
       <>
         <h1>Analyse läuft</h1>
@@ -178,11 +186,23 @@ export default function Review() {
 
   return (
     <>
-      <h1>Ergebnis</h1>
-      <p className="sub">
-        <span className="big mono" data-testid="height">{cm(result.h_e2)}</span>
-        <span className="unit"> cm Sprunghöhe</span>
-      </p>
+      <h1>{result ? "Ergebnis" : "Keine Messung möglich"}</h1>
+      {result ? (
+        <p className="sub">
+          <span className="big mono" data-testid="height">{cm(result.h_e2)}</span>
+          <span className="unit"> cm Sprunghöhe</span>
+        </p>
+      ) : (
+        <>
+          <div className="panel err" data-testid="refusal">{error}</div>
+          <p className="sub">
+            Die Kurve unter dem Video ist das Kontaktsignal: <b>hoch heisst Fuss am
+            Boden</b>, tief heisst Flug. Die roten Striche sind der erkannte Absprung
+            und die Landung. Stimmen sie nicht mit den Flanken der Kurve überein,
+            verschiebe sie unten mit den Knöpfen.
+          </p>
+        </>
+      )}
 
       {/* Seitenverhaeltnis aus den Trackdaten, nicht aus dem geladenen Video:
           laedt die Videospur nicht (fehlender Codec, langsames Netz), kollabiert
@@ -214,6 +234,7 @@ export default function Review() {
         <button disabled={busy} onClick={() => correct(0, +1)}>+1</button>
       </div>
 
+      {result ? (<>
       <h2>Alle Schätzer</h2>
       <div className="grid">
         <div><dt>E2 Hüfte (Referenz)</dt><dd className="mono">{cm(result.h_e2)} cm</dd></div>
@@ -266,6 +287,7 @@ export default function Review() {
       {(result.warnings as string[] | null)?.map((w) => (
         <div key={w} className="panel warn">{w}</div>
       ))}
+      </>) : null}
     </>
   );
 }

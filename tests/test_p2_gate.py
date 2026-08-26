@@ -126,6 +126,69 @@ async def test_second_upload_does_not_block(client, queued):
         assert (await client.get(f"/api/analyses/{aid}")).json()["status"] == "queued"
 
 
+def _fake_track(n0=40, n1=140, fps=120.0, h_m=0.45, px_per_m=400.0):
+    """Kuenstlicher Track: Huefte auf exakter Parabel, Kontaktsignal als Rechteck."""
+    import numpy as np
+    from jumpheightcalculator import G, pipeline as pl
+
+    n = 220
+    t = np.arange(n) / fps
+    v0 = float(np.sqrt(2 * G * h_m))
+    y = np.full(n, 1000.0)
+    u = t[n0:n1] - t[n0]
+    y[n0:n1] = 1000.0 - (v0 * u - 0.5 * G * u * u) * px_per_m
+    xy = np.zeros((n, 33, 2), np.float32)
+    xy[:, 23, 1] = xy[:, 24, 1] = y
+    xy[:, 11, 1] = xy[:, 12, 1] = y - 250
+    xy[:, 27, 1] = xy[:, 28, 1] = y + 150
+    contact = np.ones(n)
+    contact[n0:n1] = 0.0
+    return pl.TrackData(
+        t=t, xy=xy, width=540, height=960, hip_y=y, com_y=y, ankle_y=y + 150,
+        contact=contact, confidence=np.full(n, 0.9), n0=n0, n1=n1,
+        stance_end=max(0, n0 - 30), fps=fps, shift_residual=0.1,
+        body_scale_px=400.0, scale_drift=0.0)
+
+
+@pytest.mark.anyio
+async def test_refused_analysis_can_be_corrected_by_hand(client, data_dir):
+    """Eine Verweigerung darf keine Sackgasse sein.
+
+    Der teure Teil ist gelaufen und der Track liegt vor - der Review-Screen muss
+    die Ereignisframes verschieben koennen und damit aus einem `failed` ein
+    `ready` machen. Ohne das ist R7 zwar ehrlich, aber unbenutzbar.
+    """
+    import uuid
+    from jumpheightcalculator import db as dbmod
+
+    aid, vid = uuid.uuid4().hex, uuid.uuid4().hex
+    track_path = data_dir / "tracks" / f"{aid}.npz"
+    track_path.parent.mkdir(parents=True, exist_ok=True)
+    _fake_track().save(track_path)
+
+    con = dbmod.connect(data_dir / "jumpheightcalculator.sqlite")
+    con.execute("INSERT INTO video (id, path, filename, created_at)"
+                " VALUES (?,?,?,?)", (vid, "x.mp4", "x.mp4", "t"))
+    con.execute("INSERT INTO analysis (id, video_id, jump_type, status, error,"
+                " track_path, created_at) VALUES (?,?,?, 'failed', ?, ?, 't')",
+                (aid, vid, "cmj", "Flugzeit ausserhalb des Plausiblen", str(track_path)))
+    con.commit(); con.close()
+
+    # Der Track ist trotz Fehlschlag abrufbar - sonst kaeme der Screen nicht an
+    # das Kontaktsignal heran.
+    tr = await client.get(f"/api/analyses/{aid}/track")
+    assert tr.status_code == 200
+
+    r = await client.post(f"/api/analyses/{aid}/correct",
+                          json={"takeoff_frame": 41, "landing_frame": 139})
+    assert r.status_code == 200, r.text
+    assert r.json()["result"]["corrected"] is True
+
+    after = (await client.get(f"/api/analyses/{aid}")).json()
+    assert after["status"] == "ready"
+    assert after["error"] is None
+
+
 @pytest.mark.slow
 @pytest.mark.anyio
 @pytest.mark.skipif(not REAL_VIDEO.exists(), reason="kein echtes Sprungvideo vorhanden")

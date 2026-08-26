@@ -212,7 +212,7 @@ def correct_analysis(aid: str, body: CorrectIn, con=Depends(get_db)):
     if row is None:
         raise HTTPException(404, "Analyse unbekannt")
     if not row["track_path"]:
-        raise HTTPException(409, "Analyse ist noch nicht fertig")
+        raise HTTPException(409, "Kein Track vorhanden - die Extraktion ist gescheitert")
 
     td = pipeline.TrackData.load(row["track_path"])
     try:
@@ -221,8 +221,10 @@ def correct_analysis(aid: str, body: CorrectIn, con=Depends(get_db)):
     except pipeline.Refusal as e:
         raise HTTPException(422, str(e))
 
-    con.execute("UPDATE analysis SET result=?, quality=?, h_e2=?, v0=?, finished_at=?"
-                " WHERE id=?",
+    # status auf ready setzen und error loeschen: eine Verweigerung, die der
+    # Nutzer von Hand korrigiert hat, ist keine Verweigerung mehr.
+    con.execute("UPDATE analysis SET status='ready', error=NULL, result=?, quality=?,"
+                " h_e2=?, v0=?, finished_at=? WHERE id=?",
                 (json.dumps(res.to_dict()), res.quality, res.h_e2, res.v0, _now(), aid))
     con.commit()
     return {"id": aid, "status": "ready", "result": res.to_dict()}

@@ -82,10 +82,18 @@ def run_analysis(analysis_id: str, *, data_dir: Path | None = None) -> str:
             res = pipeline.measure(td, jump_type=row["jump_type"],
                                    mass_kg=row["mass_kg"])
         except Exception as e:                      # R7 und alles andere
+            # Track und Vorschau auch im Fehlerfall vermerken, sofern sie
+            # entstanden sind. Sonst ist eine Verweigerung eine Sackgasse: die
+            # teure Extraktion ist gelaufen, das Kontaktsignal liegt vor, aber der
+            # Review-Screen bekaeme nichts zu sehen und koennte die
+            # Ereignisframes nicht von Hand korrigieren - genau wofuer er da ist.
             con.execute(
                 "UPDATE analysis SET status='failed', error=?, finished_at=?, "
-                "pipeline_version=? WHERE id=?",
-                (str(e), _now(), PIPELINE_VERSION, analysis_id))
+                "pipeline_version=?, track_path=?, proxy_path=? WHERE id=?",
+                (str(e), _now(), PIPELINE_VERSION,
+                 str(track_path) if track_path.exists() else None,
+                 str(proxy_path) if proxy_path.exists() else None,
+                 analysis_id))
             con.commit()
             return "failed"
 

@@ -130,3 +130,40 @@ def test_cubic_test_is_deflated_by_autocorrelation():
         ar[i] += e
     assert fit_parabola(t, white, seed=0).cubic_t < 4.0
     assert fit_parabola(t, ar, seed=0).cubic_t < 4.0
+
+
+# --- Perspektive: Massstabsaenderung waehrend des Flugs ---------------------
+def _track_with_drift(drift: float):
+    """Kuenstlicher Track; `drift` ist die Groessenaenderung starrer Segmente."""
+    from jumpheightcalculator import pipeline as pl
+    n, n0, n1, fps = 220, 40, 140, 120.0
+    t = np.arange(n) / fps
+    v0 = float(np.sqrt(2 * G * 0.45))
+    y = np.full(n, 1000.0)
+    u = t[n0:n1] - t[n0]
+    y[n0:n1] = 1000.0 - (v0 * u - 0.5 * G * u * u) * 400.0
+    contact = np.ones(n); contact[n0:n1] = 0.0
+    return pl.TrackData(
+        t=t, xy=np.zeros((n, 33, 2), np.float32), width=540, height=960,
+        hip_y=y, com_y=y, ankle_y=y + 150, contact=contact,
+        confidence=np.full(n, 0.9), n0=n0, n1=n1, stance_end=n0 - 30, fps=fps,
+        shift_residual=0.1, body_scale_px=400.0, scale_drift=drift)
+
+
+def test_perspective_drift_is_refused():
+    """Wer auf die Kamera zu springt, aendert den Massstab mitten im Sprung.
+
+    Gemessen an einem echten Video: die Oberschenkel wurden im Flug 33 % laenger
+    im Bild. Ein Knochen waechst nicht - das ist Tiefenbewegung, und damit ist
+    weder die Kruemmung noch die Selbstkalibrierung (R5) noch zu gebrauchen.
+    """
+    from jumpheightcalculator.pipeline import Refusal, measure
+    with pytest.raises(Refusal, match="grösser im Bild"):
+        measure(_track_with_drift(0.33))
+
+
+def test_small_drift_is_accepted():
+    """Gegenprobe - ein sauberes Video streut rund 3 %, das darf nicht stoeren."""
+    from jumpheightcalculator.pipeline import measure
+    r = measure(_track_with_drift(0.03))
+    assert r.h_e2 == pytest.approx(0.45, abs=0.02)

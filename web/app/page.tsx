@@ -79,7 +79,10 @@ export default function Upload() {
         <li><b>Slo-Mo einschalten</b> - 240 fps wenn möglich, mindestens 120.</li>
         <li><b>Kurze Belichtung.</b> Hell aufnehmen, sonst verschmiert der Fuss.</li>
         <li><b>Handy quer auf ein Stativ</b>, so hoch wie möglich, 3-4 m Abstand.</li>
-        <li><b>Senkrecht zur Sprungebene</b> filmen, nicht vor- oder zurückspringen.</li>
+        <li><b>Senkrecht zur Sprungebene filmen und senkrecht springen.</b> Wer
+            auf die Kamera zu springt, wird im Bild grösser - dann ändert sich der
+            Massstab mitten im Sprung und die Höhe ist nicht mehr bestimmbar. Das
+            ist der häufigste Grund, weshalb eine Aufnahme abgelehnt wird.</li>
         <li><b>Ganzer Körper im Bild</b>, auch die Füsse im Scheitelpunkt.</li>
         <li><b>Enge Kleidung, kontrastreicher Boden.</b> Weite Hosen sind der
             haeufigste Grund für schlechte Knöchel-Keypoints.</li>

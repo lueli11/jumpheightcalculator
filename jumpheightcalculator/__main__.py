@@ -41,8 +41,9 @@ def main(argv: list[str] | None = None) -> int:
     an.add_argument("--mass-kg", type=float, default=None,
                     help="für Impuls und mittlere Kraft; ohne Masse entfallen beide")
     an.add_argument("--model", default="full", choices=["full", "heavy"])
-    an.add_argument("--scale", type=float, default=0.25,
-                    help="Arbeitsaufloesung als Anteil der Originalgroesse")
+    an.add_argument("--scale", type=float, default=None,
+                    help="Arbeitsauflösung als Anteil der Originalgrösse; "
+                         "ohne Angabe automatisch auf 540 px Breite")
     an.add_argument("--json", action="store_true")
 
     i = sub.add_parser("info", help="Zeitstempel und Geometrie eines Videos")

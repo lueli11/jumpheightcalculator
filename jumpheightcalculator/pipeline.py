@@ -49,6 +49,28 @@ MAX_DISAGREE_M = 0.04
 MAX_CUBIC_T = 4.0
 MAX_SHIFT_RESID_PX = 0.5
 
+# Zielbreite fuer den Pose-Zweig. Ein 4K-Video wird darauf heruntergerechnet,
+# weil MediaPipe intern ohnehin kleiner arbeitet und die Rohpipe sonst der
+# Flaschenhals ist. Ein **fester** Faktor waere falsch: ein ueber WhatsApp
+# geschicktes Video kommt mit 464 px Breite an, ein Viertel davon sind 116 px,
+# und darauf findet das Modell keine brauchbaren Keypoints mehr. Hochskaliert
+# wird nie - erfundene Pixel sind keine Information.
+TARGET_POSE_WIDTH = 540
+
+
+def pose_scale(width: int) -> float:
+    return min(1.0, TARGET_POSE_WIDTH / max(width, 1))
+
+
+# Perspektive: um wie viel darf die Person im Bild waehrend des Flugs groesser
+# oder kleiner werden? Gemessen an einem sauberen Video (Kamera seitlich, Sprung
+# senkrecht zur Achse) bleiben die starren Segmente ueber den ganzen Flug ohne
+# Trend, bei rund 3 % Streuung. Ein Video, auf dem die Person auf die Kamera zu
+# springt, kam auf +33 % - ein Oberschenkelknochen waechst nicht, das ist reine
+# Tiefenbewegung. Damit aendert sich der Massstab mitten im Sprung, die Kruemmung
+# der Parabel wird bedeutungslos und die Selbstkalibrierung (R5) ungueltig.
+MAX_SCALE_DRIFT = 0.12
+
 
 class Refusal(RuntimeError):
     """R7 - lieber keinen Wert als einen falschen, und immer mit Grund."""
@@ -76,6 +98,7 @@ class TrackData:
     fps: float
     shift_residual: float
     body_scale_px: float
+    scale_drift: float       # Groessenaenderung starrer Segmente Stand -> Flug
 
     def save(self, path: str | Path) -> None:
         np.savez_compressed(path, **{k: np.asarray(v) for k, v in asdict(self).items()})
@@ -90,6 +113,7 @@ class TrackData:
             n0=int(d["n0"]), n1=int(d["n1"]), stance_end=int(d["stance_end"]),
             fps=float(d["fps"]), shift_residual=float(d["shift_residual"]),
             body_scale_px=float(d["body_scale_px"]),
+            scale_drift=float(d["scale_drift"]) if "scale_drift" in d else 0.0,
         )
 
 
@@ -186,9 +210,36 @@ def _coarse_air(track: posemod.PoseTrack, t: np.ndarray) -> tuple[int, int, int]
     return n0, n1, min(max(10, n0 - int(0.5 * fps)), n0)
 
 
-def extract(path: str | Path, *, scale: float = 0.25, model: str = "full") -> TrackData:
-    """Der teure Teil: Decode, Pose, Pixelzweig, Fusion. Rund 2-3 Minuten auf 4K."""
+def _scale_drift(track: posemod.PoseTrack, stance_end: int, n0: int, n1: int) -> float:
+    """Groessenaenderung **starrer** Segmente zwischen Stand und Flug.
+
+    Genommen werden Oberschenkel und Unterschenkel beider Seiten: das sind
+    Knochen, ihre Bildlaenge kann sich nur aendern, wenn sich der Abstand zur
+    Kamera aendert (oder das Bein aus der Bildebene dreht). Die Koerperlaenge
+    Schulter-Knoechel taugt dafuer nicht - die aendert sich schon dadurch, dass
+    man die Beine anzieht.
+    """
+    pairs = ((23, 25), (24, 26), (25, 27), (26, 28))
+    lens = np.stack([np.linalg.norm(track.xy[:, a] - track.xy[:, b], axis=1)
+                     for a, b in pairs])
+    lo = max(0, stance_end - 60)
+    with np.errstate(invalid="ignore"):
+        stand = np.nanmedian(lens[:, lo:max(lo + 1, stance_end)])
+        air = np.nanmedian(lens[:, n0:max(n0 + 1, n1)])
+    if not (np.isfinite(stand) and np.isfinite(air)) or stand <= 0:
+        return 0.0
+    return float(air / stand - 1.0)
+
+
+def extract(path: str | Path, *, scale: float | None = None,
+            model: str = "full") -> TrackData:
+    """Der teure Teil: Decode, Pose, Pixelzweig, Fusion. Rund 2-3 Minuten auf 4K.
+
+    `scale` wird aus der Bildbreite bestimmt, wenn nichts angegeben ist.
+    """
     info = probe(path)
+    if scale is None:
+        scale = pose_scale(info.width)
     track = posemod.track(info, model=model, scale=scale)
     if track.found.mean() < 0.8:
         raise Refusal(
@@ -229,6 +280,7 @@ def extract(path: str | Path, *, scale: float = 0.25, model: str = "full") -> Tr
 
     n = min(info.n_frames, c.size)
     conf = np.nanmean(track.vis[:n][:, list(posemod.HIP) + list(posemod.ANKLE)], axis=1)
+    drift = _scale_drift(track, stance_end, c_n0, c_n1)
     return TrackData(
         t=info.t[:n],
         xy=track.xy[:n],
@@ -239,7 +291,7 @@ def extract(path: str | Path, *, scale: float = 0.25, model: str = "full") -> Tr
         contact=c[:n], confidence=conf,
         n0=n0, n1=n1, stance_end=stance_end,
         fps=info.measured_fps, shift_residual=sig.shift_residual,
-        body_scale_px=track.body_scale(),
+        body_scale_px=track.body_scale(), scale_drift=drift,
     )
 
 
@@ -250,6 +302,20 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
     `n0`/`n1` überschreiben das Flugfenster - so rechnet eine +/-1-Frame-Korrektur
     aus dem Review-Screen neu, ohne dass die Pose neu bestimmt werden muss.
     """
+    # Zuerst die Perspektive. Aendert sich der Massstab mitten im Sprung, sind
+    # alle folgenden Pruefungen Folgefehler - eine unplausible Flugzeit ist dann
+    # das Symptom, nicht die Ursache, und "verschiebe die Ereignisframes" waere
+    # ein irrefuehrender Rat: von Hand ist da nichts zu retten.
+    if abs(td.scale_drift) > MAX_SCALE_DRIFT:
+        raise Refusal(
+            f"Die Person wird während des Flugs {td.scale_drift*100:+.0f} % grösser "
+            f"im Bild - gemessen an Ober- und Unterschenkel, und Knochen wachsen "
+            f"nicht. Du springst also auf die Kamera zu oder von ihr weg. Damit "
+            f"ändert sich der Massstab mitten im Sprung und die Höhe ist nicht "
+            f"bestimmbar. Stelle die Kamera seitlich auf, 3-4 m entfernt, und "
+            f"springe senkrecht zur Blickrichtung - ohne vor- oder zurückzuspringen."
+        )
+
     corrected = n0 is not None or n1 is not None
     n0 = td.n0 if n0 is None else int(n0)
     n1 = td.n1 if n1 is None else int(n1)
@@ -271,8 +337,10 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
     if not (MIN_FLIGHT_S <= t_f <= MAX_FLIGHT_S):
         raise Refusal(
             f"Flugzeit {t_f*1000:.0f} ms liegt ausserhalb des Plausiblen "
-            f"({MIN_FLIGHT_S*1000:.0f}-{MAX_FLIGHT_S*1000:.0f} ms). Entweder wurde der "
-            f"Absprung falsch erkannt, oder die Zeitbasis des Videos stimmt nicht."
+            f"({MIN_FLIGHT_S*1000:.0f}-{MAX_FLIGHT_S*1000:.0f} ms) - das waeren "
+            f"{G*t_f*t_f/8*100:.0f} cm. Absprung oder Landung wurden falsch erkannt. "
+            f"Im Review-Screen lassen sich die beiden Ereignisframes von Hand "
+            f"verschieben; die Kontaktsignal-Kurve zeigt, wo sie hingehoeren."
         )
 
     # R4 - Randframes raus: dort ist der Punkt weder Kontakt noch sauberer Flug,
@@ -401,7 +469,7 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
 
 
 def analyze(path: str | Path, *, jump_type: str = "cmj", mass_kg: float | None = None,
-            seed: int = 0, scale: float = 0.25, model: str = "full",
+            seed: int = 0, scale: float | None = None, model: str = "full",
             track_out: str | Path | None = None) -> Result:
     """Bequemlichkeit für die CLI: extrahieren und messen in einem Zug."""
     td = extract(path, scale=scale, model=model)
