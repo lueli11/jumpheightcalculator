@@ -1,0 +1,260 @@
+"""FastAPI vor der CLI-Logik.
+
+Kein Auth, kein Multi-Tenancy: ein Nutzer im eigenen Netz (Nicht-Ziel Nr. 1).
+Die Analyse laeuft im arq-Worker, nie im Request.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import csv
+import io
+import json
+import os
+import shutil
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+
+import numpy as np
+from arq.connections import RedisSettings, create_pool
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, StreamingResponse
+from pydantic import BaseModel, Field
+
+from . import PIPELINE_VERSION, db, pipeline
+from .ingest import IngestError, probe
+
+DATA_DIR = Path(os.environ.get("JUMPHEIGHTCALCULATOR_DATA", "data"))
+REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
+JUMP_TYPES = ("cmj", "sj", "drop", "hops")
+
+# Unter dieser Bildrate ist der Fehler laut Fehlerrechnung mehrere Zentimeter -
+# fuer eine Fortschrittsmessung unbrauchbar. Der Upload wird trotzdem angenommen,
+# aber der Nutzer erfaehrt es sofort statt erst am Ergebnis.
+FPS_WARN = 120.0
+
+app = FastAPI(title="jumpheightcalculator", version=PIPELINE_VERSION)
+
+# Der Browser laedt das Video **direkt** hierher, nicht ueber den Next-Proxy.
+# Gemessen riss ein 134-MB-Upload durch den Proxy mit ECONNRESET ab: die Datei
+# kam an, der Browser sah trotzdem einen Fehler und startete die Analyse nie.
+# Ein Puffer weniger, ein Fehlerfall weniger. Offene Herkunft ist vertretbar -
+# ein Nutzer im eigenen Netz, keine Anmeldung, keine Cookies (Nicht-Ziel Nr. 1).
+app.add_middleware(
+    CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
+    allow_credentials=False,
+)
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def get_db():
+    con = db.connect(DATA_DIR / "jumpheightcalculator.sqlite")
+    try:
+        yield con
+    finally:
+        con.close()
+
+
+async def enqueue(analysis_id: str) -> None:
+    """In die Warteschlange legen.
+
+    Ist Redis nicht erreichbar, bleibt die Analyse auf `queued` stehen und der
+    Upload gilt trotzdem als angenommen. Das ist Absicht: das Video liegt schon
+    auf der Platte, und ein Worker, der spaeter hochkommt, holt die Zeile ab. Ein
+    500 an dieser Stelle wuerde den Nutzer den Upload wiederholen lassen, obwohl
+    nichts verloren ist. Was es **nicht** tut, ist `ready` zu melden.
+    """
+    try:
+        # Mit Frist: `create_pool` versucht es sonst fuenfmal und blockiert den
+        # Request rund 25 Sekunden, bevor es aufgibt. Gemessen genau das.
+        pool = await asyncio.wait_for(
+            create_pool(RedisSettings.from_dsn(REDIS_URL)), timeout=3.0)
+    except Exception:
+        return
+    try:
+        await pool.enqueue_job("analyse_job", analysis_id)
+    finally:
+        await pool.aclose()
+
+
+class VideoOut(BaseModel):
+    video_id: str
+    filename: str
+    width: int
+    height: int
+    rotation: int
+    n_frames: int
+    duration: float
+    fps_measured: float
+    warning: str | None = None
+
+
+class AnalysisIn(BaseModel):
+    video_id: str
+    jump_type: str = "cmj"
+    mass_kg: float | None = Field(default=None, gt=0, lt=300)
+
+
+class CorrectIn(BaseModel):
+    takeoff_frame: int | None = None
+    landing_frame: int | None = None
+
+
+@app.post("/api/videos", response_model=VideoOut)
+async def upload_video(file: UploadFile = File(...), con=Depends(get_db)):
+    vid = uuid.uuid4().hex
+    dest = DATA_DIR / "videos" / f"{vid}{Path(file.filename or '').suffix or '.mp4'}"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    with dest.open("wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    try:
+        info = probe(dest)
+    except IngestError as e:
+        dest.unlink(missing_ok=True)
+        raise HTTPException(status_code=422, detail=str(e))
+
+    con.execute(
+        "INSERT INTO video (id, path, filename, width, height, rotation, n_frames,"
+        " duration, fps_measured, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        (vid, str(dest), file.filename or dest.name, info.width, info.height,
+         info.rotation, info.n_frames, info.duration, info.measured_fps, _now()))
+    con.commit()
+
+    warning = None
+    if info.measured_fps < FPS_WARN:
+        warning = (f"Nur {info.measured_fps:.0f} fps gemessen. Fuer eine "
+                   f"Fortschrittsmessung sind mindestens {FPS_WARN:.0f} fps noetig - "
+                   f"bitte in Slo-Mo aufnehmen.")
+    return VideoOut(video_id=vid, filename=file.filename or dest.name,
+                    width=info.width, height=info.height, rotation=info.rotation,
+                    n_frames=info.n_frames, duration=info.duration,
+                    fps_measured=info.measured_fps, warning=warning)
+
+
+@app.post("/api/analyses")
+async def create_analysis(body: AnalysisIn, con=Depends(get_db)):
+    if body.jump_type not in JUMP_TYPES:
+        raise HTTPException(422, f"jump_type muss eines von {JUMP_TYPES} sein")
+    if con.execute("SELECT 1 FROM video WHERE id=?", (body.video_id,)).fetchone() is None:
+        raise HTTPException(404, "Video unbekannt")
+
+    aid = uuid.uuid4().hex
+    con.execute(
+        "INSERT INTO analysis (id, video_id, jump_type, mass_kg, status, created_at)"
+        " VALUES (?,?,?,?, 'queued', ?)",
+        (aid, body.video_id, body.jump_type, body.mass_kg, _now()))
+    con.commit()
+    await enqueue(aid)
+    return {"job_id": aid, "status": "queued"}
+
+
+@app.get("/api/analyses/{aid}")
+def get_analysis(aid: str, con=Depends(get_db)):
+    row = con.execute("SELECT * FROM analysis WHERE id=?", (aid,)).fetchone()
+    if row is None:
+        raise HTTPException(404, "Analyse unbekannt")
+    d = db.row_to_analysis(row)
+    return {"id": d["id"], "video_id": d["video_id"], "status": d["status"],
+            "jump_type": d["jump_type"], "error": d["error"],
+            "pipeline_version": d["pipeline_version"], "result": d["result"]}
+
+
+@app.get("/api/analyses/{aid}/track")
+def get_track(aid: str, con=Depends(get_db)):
+    """Keypoints und Kontaktsignal je Frame - daraus rendert das Overlay."""
+    row = con.execute("SELECT track_path FROM analysis WHERE id=?", (aid,)).fetchone()
+    if row is None or not row["track_path"]:
+        raise HTTPException(404, "Kein Track vorhanden")
+    td = pipeline.TrackData.load(row["track_path"])
+    return {
+        "t": td.t.tolist(),
+        "xy": np.nan_to_num(td.xy, nan=-1.0).round(2).tolist(),
+        "width": td.width, "height": td.height,
+        "hip_y": np.nan_to_num(td.hip_y, nan=-1.0).tolist(),
+        "com_y": np.nan_to_num(td.com_y, nan=-1.0).tolist(),
+        "ankle_y": np.nan_to_num(td.ankle_y, nan=-1.0).tolist(),
+        "contact": td.contact.tolist(),
+        "confidence": np.nan_to_num(td.confidence, nan=0.0).tolist(),
+        "n0": td.n0, "n1": td.n1, "fps": td.fps,
+        "body_scale_px": td.body_scale_px,
+    }
+
+
+@app.get("/api/analyses/{aid}/video")
+def get_proxy_video(aid: str, con=Depends(get_db)):
+    """Herunterskaliertes Vorschauvideo fuer den Review-Screen.
+
+    Das Original ist 4K und 139 MB - im Browser ist damit kein frame-genaues
+    Steppen moeglich. Das Proxy hat dieselbe Frameanzahl und dieselben
+    Zeitstempel, nur weniger Pixel, und liegt in derselben Aufloesung wie die
+    Landmarks: das Overlay passt damit ohne Umrechnung.
+    """
+    row = con.execute("SELECT proxy_path FROM analysis WHERE id=?", (aid,)).fetchone()
+    if row is None or not row["proxy_path"] or not Path(row["proxy_path"]).exists():
+        raise HTTPException(404, "Kein Vorschauvideo vorhanden")
+    return FileResponse(row["proxy_path"], media_type="video/mp4")
+
+
+@app.post("/api/analyses/{aid}/correct")
+def correct_analysis(aid: str, body: CorrectIn, con=Depends(get_db)):
+    """Korrigierte Ereignisframes - rechnet neu und markiert das Ergebnis.
+
+    Laeuft ohne Worker: der teure Teil (Pose) steckt im gespeicherten Track, die
+    Neuberechnung dauert Millisekunden.
+    """
+    row = con.execute("SELECT * FROM analysis WHERE id=?", (aid,)).fetchone()
+    if row is None:
+        raise HTTPException(404, "Analyse unbekannt")
+    if not row["track_path"]:
+        raise HTTPException(409, "Analyse ist noch nicht fertig")
+
+    td = pipeline.TrackData.load(row["track_path"])
+    try:
+        res = pipeline.measure(td, jump_type=row["jump_type"], mass_kg=row["mass_kg"],
+                               n0=body.takeoff_frame, n1=body.landing_frame)
+    except pipeline.Refusal as e:
+        raise HTTPException(422, str(e))
+
+    con.execute("UPDATE analysis SET result=?, quality=?, h_e2=?, v0=?, finished_at=?"
+                " WHERE id=?",
+                (json.dumps(res.to_dict()), res.quality, res.h_e2, res.v0, _now(), aid))
+    con.commit()
+    return {"id": aid, "status": "ready", "result": res.to_dict()}
+
+
+@app.get("/api/sessions")
+def sessions(jump_type: str | None = None, as_csv: bool = False, con=Depends(get_db)):
+    """Verlauf. Die Pipeline-Version steht bewusst in jeder Zeile: nach einem
+    Algorithmus-Update sind aeltere Werte nicht mehr vergleichbar."""
+    sql = ("SELECT a.id, a.created_at, a.jump_type, a.status, a.quality, a.h_e2, a.v0,"
+           " a.pipeline_version, v.filename FROM analysis a"
+           " JOIN video v ON v.id = a.video_id WHERE a.status='ready'")
+    args: list = []
+    if jump_type:
+        sql += " AND a.jump_type=?"
+        args.append(jump_type)
+    rows = [dict(r) for r in con.execute(sql + " ORDER BY a.created_at DESC", args)]
+
+    if not as_csv:
+        return rows
+    fields = list(rows[0].keys()) if rows else [
+        "id", "created_at", "jump_type", "status", "quality", "h_e2", "v0",
+        "pipeline_version", "filename"]
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=fields)
+    w.writeheader()
+    w.writerows(rows)
+    return StreamingResponse(
+        io.BytesIO(buf.getvalue().encode()), media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=jumpheightcalculator.csv"})
+
+
+@app.get("/api/health")
+def health():
+    return {"status": "ok", "pipeline_version": PIPELINE_VERSION}

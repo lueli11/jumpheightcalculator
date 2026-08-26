@@ -1,0 +1,14 @@
+.venv/
+.git/
+__pycache__/
+*.pyc
+.pytest_cache/
+web/
+data/
+data-e2e*/
+tests/data/
+*.MOV
+*.mov
+*.mp4
+jumpheightcalculator.html
+*.egg-info/

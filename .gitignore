@@ -1,0 +1,31 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Laufzeitdaten und Testartefakte
+data/
+data-e2e*/
+tests/data/
+*.sqlite
+*.sqlite-*
+
+# Videos: gross und persoenlich, gehoeren nicht ins Repo
+*.MOV
+*.mov
+*.mp4
+
+# Web
+web/node_modules/
+web/.next/
+web/.next-broken-*/
+web/out/
+web/test-results/
+web/playwright-report/
+web/build.log
+web/*.png
+
+# Nur das "full"-Modell liegt im Repo. "heavy" (30 MB) laedt man bei Bedarf
+# nach; die Fehlermeldung in pose.py nennt die URL.
+jumpheightcalculator/models/pose_landmarker_heavy.task

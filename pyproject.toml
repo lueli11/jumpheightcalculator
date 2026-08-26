@@ -1,0 +1,30 @@
+[project]
+name = "jumpheightcalculator"
+version = "0.1.0"
+description = "Sprunghoehe, Flugzeit und Absprunggeschwindigkeit aus Video"
+requires-python = ">=3.12,<3.13"   # MediaPipe 1.0.1 deklariert 3.9-3.12
+dependencies = [
+    "numpy>=2.1",
+    "scipy>=1.14",
+    "opencv-contrib-python>=4.10",   # mediapipe zieht contrib; beide zugleich kollidieren
+    "mediapipe>=0.10,<2",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "arq>=0.26",
+    "pydantic>=2.9",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "av>=13", "anyio", "httpx", "trio"]   # av nur fuer den Testvideo-Generator
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["jumpheightcalculator"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["slow: braucht generierte Videos, laeuft ueber eine Minute"]

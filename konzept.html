@@ -1,0 +1,1269 @@
+<title>Absprung</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+
+<style>
+  :root {
+    --ground:   #E9ECEE;
+    --surface:  #FFFFFF;
+    --sunk:     #DFE4E7;
+    --ink:      #10171E;
+    --muted:    #5B6773;
+    --line:     #D3D9DE;
+    --line-2:   #BFC7CE;
+    --trace:    #0C8895;
+    --trace-dim:#0C889522;
+    --event:    #C7343F;
+    --warn:     #9A6A08;
+    --warn-bg:  #F0A20218;
+    --shadow:   0 1px 2px rgba(16,23,30,.05), 0 8px 24px -12px rgba(16,23,30,.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:   #0D1114;
+      --surface:  #161B20;
+      --sunk:     #11161A;
+      --ink:      #E4EAF0;
+      --muted:    #8E9CA9;
+      --line:     #242C34;
+      --line-2:   #333D46;
+      --trace:    #3ED0DE;
+      --trace-dim:#3ED0DE1F;
+      --event:    #FF6E6E;
+      --warn:     #E8B44A;
+      --warn-bg:  #E8B44A16;
+      --shadow:   0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:   #0D1114;
+    --surface:  #161B20;
+    --sunk:     #11161A;
+    --ink:      #E4EAF0;
+    --muted:    #8E9CA9;
+    --line:     #242C34;
+    --line-2:   #333D46;
+    --trace:    #3ED0DE;
+    --trace-dim:#3ED0DE1F;
+    --event:    #FF6E6E;
+    --warn:     #E8B44A;
+    --warn-bg:  #E8B44A16;
+    --shadow:   0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    font-size: 16.5px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 24px 120px;
+  }
+
+  /* --- prose measure --- */
+  .col { max-width: 660px; }
+  .col > * + * { margin-top: 0; }
+
+  p { margin: 0 0 1.05em; }
+  .col > p:last-child { margin-bottom: 0; }
+
+  h1, h2, h3, h4 {
+    font-family: "IBM Plex Sans Condensed", "IBM Plex Sans", sans-serif;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  /* --- masthead --- */
+  header.mast {
+    padding: 76px 0 40px;
+    border-bottom: 1px solid var(--line-2);
+    margin-bottom: 56px;
+  }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11.5px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--trace);
+    font-weight: 500;
+    margin: 0 0 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    align-items: baseline;
+  }
+  .eyebrow .sep { color: var(--line-2); }
+  h1 {
+    font-size: clamp(40px, 7.4vw, 68px);
+    font-weight: 700;
+    line-height: 1.02;
+    letter-spacing: -.022em;
+  }
+  h1 .thin { font-weight: 500; color: var(--muted); display: block; }
+  .standfirst {
+    margin-top: 26px;
+    font-size: 19px;
+    line-height: 1.55;
+    color: var(--muted);
+    max-width: 620px;
+  }
+  .standfirst strong { color: var(--ink); font-weight: 600; }
+
+  /* --- sections --- */
+  section { margin-bottom: 68px; }
+  h2 {
+    font-size: 27px;
+    font-weight: 600;
+    letter-spacing: -.012em;
+    line-height: 1.16;
+    margin-bottom: 8px;
+  }
+  .sechead {
+    display: flex;
+    gap: 16px;
+    align-items: baseline;
+    margin-bottom: 22px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .sechead .num {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--trace);
+    flex: none;
+    padding-top: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  h3 {
+    font-size: 18.5px;
+    font-weight: 600;
+    margin: 34px 0 10px;
+    letter-spacing: -.005em;
+  }
+  h4 {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 10px;
+  }
+
+  a { color: var(--trace); text-decoration: none; border-bottom: 1px solid var(--trace-dim); }
+  a:hover { border-bottom-color: var(--trace); }
+  a:focus-visible { outline: 2px solid var(--trace); outline-offset: 3px; border-radius: 2px; }
+
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .875em; }
+  p code, li code, td code {
+    background: var(--sunk);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 1px 5px;
+  }
+  strong { font-weight: 600; }
+  em { font-style: italic; }
+
+  ul, ol { margin: 0 0 1.05em; padding-left: 1.25em; }
+  li { margin-bottom: .38em; }
+  li::marker { color: var(--muted); }
+
+  /* --- panels (break the measure) --- */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: var(--shadow);
+    margin: 28px 0;
+    overflow: hidden;
+  }
+  .panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--line);
+    background: var(--sunk);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .panel-body { padding: 22px 20px; }
+  .panel-body > *:first-child { margin-top: 0; }
+  .panel-body > *:last-child { margin-bottom: 0; }
+
+  /* --- figures --- */
+  figure { margin: 0; }
+  figure svg { display: block; width: 100%; max-width: 100%; height: auto; color: var(--ink); }
+  .scroller { overflow-x: auto; }
+  .scroller > svg { min-width: 620px; }
+  figcaption {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.5;
+    padding: 14px 20px 18px;
+    border-top: 1px solid var(--line);
+    background: var(--sunk);
+  }
+  figcaption b { color: var(--ink); font-weight: 600; }
+
+  /* --- formula block --- */
+  .formula {
+    background: var(--sunk);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--trace);
+    border-radius: 3px;
+    padding: 16px 18px;
+    margin: 20px 0;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 15px;
+    line-height: 1.9;
+    overflow-x: auto;
+  }
+  .formula .lbl {
+    display: block;
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .formula .note { color: var(--muted); font-size: 13px; }
+
+  /* --- tables --- */
+  .tblwrap { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14.5px;
+    font-variant-numeric: tabular-nums;
+    min-width: 480px;
+  }
+  th, td {
+    text-align: left;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  thead th {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    border-bottom: 1px solid var(--line-2);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num, th.num { text-align: right; font-family: "IBM Plex Mono", monospace; }
+  td.good { color: var(--trace); font-weight: 500; }
+  td.bad  { color: var(--event); font-weight: 500; }
+  tr.hl td { background: var(--trace-dim); }
+
+  /* --- callout --- */
+  .callout {
+    background: var(--warn-bg);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--warn);
+    border-radius: 3px;
+    padding: 16px 18px;
+    margin: 24px 0;
+    font-size: 15.5px;
+  }
+  .callout .tag {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--warn);
+    font-weight: 600;
+    display: block;
+    margin-bottom: 6px;
+  }
+  .callout p:last-child { margin-bottom: 0; }
+
+  /* --- pipeline stage list --- */
+  .stages { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; margin: 26px 0; }
+  .stage { background: var(--surface); padding: 18px 20px; display: grid; grid-template-columns: 44px 1fr; gap: 4px 16px; }
+  .stage .sn {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--trace);
+    padding-top: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+  .stage h4 { margin: 0; color: var(--ink); font-size: 12.5px; letter-spacing: .06em; }
+  .stage .sbody { grid-column: 2; font-size: 15px; color: var(--muted); }
+  .stage .sbody b { color: var(--ink); font-weight: 600; }
+  .stage .sbody p { margin: 6px 0 0; }
+  .stage .sbody ul { margin: 8px 0 0; padding-left: 1.1em; }
+
+  /* --- key/value spec grid --- */
+  .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; margin: 24px 0; }
+  .kv > div { background: var(--surface); padding: 14px 16px; }
+  .kv dt { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+  .kv dd { margin: 0; font-size: 15px; line-height: 1.45; }
+  .kv dd .big { font-family: "IBM Plex Sans Condensed", sans-serif; font-size: 21px; font-weight: 600; letter-spacing: -.01em; }
+
+  /* --- endpoint list --- */
+  .api { font-family: "IBM Plex Mono", monospace; font-size: 13.5px; }
+  .api > div { display: grid; grid-template-columns: 62px 1fr; gap: 4px 12px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+  .api > div:last-child { border-bottom: none; }
+  .api .verb { font-weight: 600; font-size: 11px; letter-spacing: .06em; padding-top: 2px; }
+  .api .verb.get { color: var(--trace); }
+  .api .verb.post { color: var(--event); }
+  .api .desc { grid-column: 2; font-family: "IBM Plex Sans", sans-serif; font-size: 14px; color: var(--muted); }
+
+  /* --- milestones --- */
+  .miles { margin: 26px 0; border-top: 1px solid var(--line); }
+  .mile { display: grid; grid-template-columns: 92px 1fr; gap: 4px 20px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+  .mile .tag { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; font-weight: 600; letter-spacing: .06em; color: var(--trace); padding-top: 3px; }
+  .mile .tag .wk { display: block; color: var(--muted); font-weight: 400; letter-spacing: .04em; margin-top: 3px; font-size: 10.5px; }
+  .mile h4 { color: var(--ink); font-size: 13px; margin-bottom: 6px; }
+  .mile .m-body { grid-column: 2; font-size: 15px; color: var(--muted); }
+  .mile .m-body b { color: var(--ink); font-weight: 600; }
+
+  footer.end {
+    margin-top: 40px;
+    padding-top: 26px;
+    border-top: 1px solid var(--line-2);
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+  footer.end a { color: var(--muted); border-bottom-color: var(--line-2); }
+  footer.end a:hover { color: var(--trace); border-bottom-color: var(--trace); }
+  footer.end ol { padding-left: 1.4em; }
+
+  @media (max-width: 640px) {
+    body { font-size: 16px; }
+    .wrap { padding: 0 18px 90px; }
+    header.mast { padding-top: 52px; }
+    .sechead { flex-direction: column; gap: 4px; }
+    .sechead .num { padding-top: 0; }
+    .stage { grid-template-columns: 1fr; }
+    .stage .sbody { grid-column: 1; }
+    .mile { grid-template-columns: 1fr; }
+    .mile .m-body { grid-column: 1; }
+    .api > div { grid-template-columns: 1fr; }
+    .api .desc { grid-column: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <div class="col">
+    <p class="eyebrow">
+      <span>Konzept</span><span class="sep">/</span>
+      <span>Web-App</span><span class="sep">/</span>
+      <span>Python-Backend</span><span class="sep">/</span>
+      <span>26.08.2026</span>
+    </p>
+    <h1>Absprung<span class="thin">Sprunghöhe aus Video, Frame für Frame</span></h1>
+    <p class="standfirst">
+      Video rein, Flugzeit, Absprunggeschwindigkeit und Sprunghöhe raus. Der schwierige Teil ist nicht die Formel —
+      der ist <strong>zu wissen, in welchem Moment zwischen zwei Frames der Fuss den Boden verlässt</strong>.
+      Dieses Konzept beschreibt eine hybride Pipeline aus Pose-Erkennung und Pixel-Bewegungsanalyse,
+      die genau diesen Moment auf einen Bruchteil eines Frames auflöst.
+    </p>
+  </div>
+</header>
+
+<!-- ============ 01 ============ -->
+<section>
+  <div class="col">
+    <div class="sechead">
+      <span class="num">01</span>
+      <h2>Die Physik ist der einfache Teil</h2>
+    </div>
+
+    <p>
+      Ein Körper, der den Boden mit der Vertikalgeschwindigkeit <code>v₀</code> verlässt, steigt und fällt
+      symmetrisch. Aus der Flugzeit <code>t</code> folgt direkt:
+    </p>
+  </div>
+
+  <div class="col">
+    <div class="formula">
+      <span class="lbl">Flugzeit → Höhe</span>
+      h = g · t² / 8 &nbsp;&nbsp;<span class="note">g = 9.81 m/s²</span><br>
+      v₀ = g · t / 2<br>
+      t = √(8h / g)
+    </div>
+    <p>
+      Ein Sprung von <strong>40 cm</strong> dauert also <strong>571 ms</strong> in der Luft. Ein Sprung von 50 cm
+      dauert 639 ms — die ganzen 10 cm Unterschied stecken in <strong>68 Millisekunden</strong>.
+    </p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><span>Abb. 1 — Frame-Quantisierung</span><span>Sprung 40 cm, schematisch</span></div>
+    <figure>
+      <div class="scroller">
+        <svg viewBox="0 0 840 300" role="img" aria-label="Zeitachse mit Frame-Ticks: der Absprung liegt zwischen zwei Frames, Frame-Zählung überschätzt die Flugzeit um 0,35 Frames.">
+          <defs>
+            <marker id="ar1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+
+          <!-- flight window shading -->
+          <rect x="255.2" y="60" width="426" height="150" fill="var(--trace-dim)"/>
+
+          <!-- ground line -->
+          <line x1="40" y1="210" x2="800" y2="210" stroke="currentColor" stroke-width="1.5" opacity=".55"/>
+          <text x="40" y="228" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor" opacity=".6">Bodenlinie</text>
+
+          <!-- frame ticks -->
+          <g stroke="currentColor" stroke-width="1" opacity=".22">
+            <line x1="70"  y1="210" x2="70"  y2="248"/><line x1="110" y1="210" x2="110" y2="248"/>
+            <line x1="150" y1="210" x2="150" y2="248"/><line x1="190" y1="210" x2="190" y2="248"/>
+            <line x1="230" y1="210" x2="230" y2="248"/><line x1="270" y1="210" x2="270" y2="248"/>
+            <line x1="310" y1="210" x2="310" y2="248"/><line x1="350" y1="210" x2="350" y2="248"/>
+            <line x1="390" y1="210" x2="390" y2="248"/><line x1="430" y1="210" x2="430" y2="248"/>
+            <line x1="470" y1="210" x2="470" y2="248"/><line x1="510" y1="210" x2="510" y2="248"/>
+            <line x1="550" y1="210" x2="550" y2="248"/><line x1="590" y1="210" x2="590" y2="248"/>
+            <line x1="630" y1="210" x2="630" y2="248"/><line x1="670" y1="210" x2="670" y2="248"/>
+            <line x1="710" y1="210" x2="710" y2="248"/><line x1="750" y1="210" x2="750" y2="248"/>
+          </g>
+          <text x="70" y="266" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".5" text-anchor="middle">n=0</text>
+          <text x="270" y="266" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".5" text-anchor="middle">5</text>
+          <text x="470" y="266" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".5" text-anchor="middle">10</text>
+          <text x="670" y="266" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".5" text-anchor="middle">15</text>
+          <text x="750" y="266" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".5" text-anchor="middle">17</text>
+
+          <!-- fitted parabola -->
+          <path d="M 255.2 210 Q 468.2 -30 681.2 210" fill="none" stroke="var(--trace)" stroke-width="2" stroke-dasharray="5 4" opacity=".85"/>
+
+          <!-- sampled ankle points -->
+          <g fill="var(--trace)">
+            <circle cx="70"  cy="210" r="4"/><circle cx="110" cy="210" r="4"/>
+            <circle cx="150" cy="210" r="4"/><circle cx="190" cy="210" r="4"/>
+            <circle cx="230" cy="210" r="4"/>
+            <circle cx="270" cy="193.9" r="4"/><circle cx="310" cy="156.2" r="4"/>
+            <circle cx="350" cy="127.0" r="4"/><circle cx="390" cy="106.2" r="4"/>
+            <circle cx="430" cy="93.9"  r="4"/><circle cx="470" cy="90.1"  r="4"/>
+            <circle cx="510" cy="94.7"  r="4"/><circle cx="550" cy="107.7" r="4"/>
+            <circle cx="590" cy="129.3" r="4"/><circle cx="630" cy="159.3" r="4"/>
+            <circle cx="670" cy="197.7" r="4"/>
+            <circle cx="710" cy="210" r="4"/><circle cx="750" cy="210" r="4"/>
+          </g>
+
+          <!-- true event lines -->
+          <line x1="255.2" y1="42" x2="255.2" y2="248" stroke="var(--event)" stroke-width="2"/>
+          <line x1="681.2" y1="42" x2="681.2" y2="248" stroke="var(--event)" stroke-width="2"/>
+          <text x="249" y="36" font-family="IBM Plex Mono, monospace" font-size="11.5" font-weight="600" fill="var(--event)" text-anchor="end">Absprung n=4.63</text>
+          <text x="688" y="36" font-family="IBM Plex Mono, monospace" font-size="11.5" font-weight="600" fill="var(--event)">Landung n=15.28</text>
+
+          <!-- measurement bars -->
+          <line x1="255.2" y1="288" x2="681.2" y2="288" stroke="var(--event)" stroke-width="1.6" marker-start="url(#ar1)" marker-end="url(#ar1)"/>
+          <text x="468" y="283" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--event)" text-anchor="middle" font-weight="600">Sub-Frame-Fit: 10.65 Frames</text>
+
+          <line x1="250" y1="60" x2="690" y2="60" stroke="currentColor" stroke-width="1.4" opacity=".45" marker-start="url(#ar1)" marker-end="url(#ar1)"/>
+          <text x="468" y="54" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="currentColor" opacity=".65" text-anchor="middle">Frame-Zählung: 11 Frames</text>
+        </svg>
+      </div>
+      <figcaption>
+        Der Absprung findet zwischen Frame 4 und 5 statt, die Landung zwischen 15 und 16 — die Kamera hat den Moment nie gesehen.
+        Naives Zählen der Flugframes liefert 11 statt 10.65: <b>+3.3 % Flugzeit</b>. Weil h quadratisch von t abhängt,
+        werden daraus <b>+6.7 % Sprunghöhe</b>, also fast 3 cm bei einem 40-cm-Sprung. Die gestrichelte Parabel durch alle
+        Flugframes ist der Ausweg: sie schneidet die Bodenlinie an einer Stelle, die zwischen den Frames liegt.
+      </figcaption>
+    </figure>
+  </div>
+
+  <div class="col">
+    <p>
+      Damit ist die zentrale Design-Entscheidung gesetzt: <strong>nicht Frames zählen, sondern eine Parabel fitten.</strong>
+      Was das an Genauigkeit bringt, steht in Abschnitt 02.
+    </p>
+  </div>
+</section>
+
+<!-- ============ 02 ============ -->
+<section>
+  <div class="col">
+    <div class="sechead">
+      <span class="num">02</span>
+      <h2>Was die Framerate kostet</h2>
+    </div>
+    <p>
+      Wenn man nur Frames zählt, ist die Unsicherheit der Flugzeit rund ein Frame pro Ereignis, also bis zu zwei
+      Frames insgesamt. Über <code>dh/dt = g·t/4</code> übersetzt sich das direkt in Zentimeter:
+    </p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><span>Tab. 1 — Höhenfehler durch reines Frame-Zählen</span><span>Sprunghöhe 40 cm · t = 571 ms</span></div>
+    <div class="panel-body">
+      <div class="tblwrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Aufnahme</th>
+              <th class="num">Δt / Frame</th>
+              <th class="num">± 1 Frame</th>
+              <th class="num">± 2 Frames</th>
+              <th>Praktisch</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>30 fps <span class="mono" style="opacity:.6">Standard</span></td>
+              <td class="num">33.3 ms</td><td class="num bad">4.7 cm</td><td class="num bad">9.3 cm</td>
+              <td>unbrauchbar für Fortschrittsmessung</td>
+            </tr>
+            <tr>
+              <td>60 fps</td>
+              <td class="num">16.7 ms</td><td class="num bad">2.3 cm</td><td class="num bad">4.7 cm</td>
+              <td>grobe Orientierung</td>
+            </tr>
+            <tr>
+              <td>120 fps <span class="mono" style="opacity:.6">Slo-Mo</span></td>
+              <td class="num">8.3 ms</td><td class="num">1.2 cm</td><td class="num">2.3 cm</td>
+              <td>brauchbar</td>
+            </tr>
+            <tr class="hl">
+              <td>240 fps <span class="mono" style="opacity:.6">Slo-Mo</span></td>
+              <td class="num">4.2 ms</td><td class="num good">0.6 cm</td><td class="num good">1.2 cm</td>
+              <td><strong>Zielformat der App</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <p>
+      Das deckt sich mit der Literatur: Pueo et al. finden für die Flugzeitmethode einen technischen Fehler von
+      <strong>1.4 % Sprunghöhe bei 120 Hz</strong> und <strong>0.7 % bei 240 Hz</strong>, und dass mehr als 240 Hz
+      kaum noch etwas bringt.<sup>[1]</sup> 240 fps ist damit der Sweet Spot — und genau das, was jedes moderne
+      Smartphone im Slo-Mo-Modus liefert.
+    </p>
+
+    <h3>Was der Parabel-Fit rettet</h3>
+    <p>
+      Der Fit nutzt <em>alle</em> Flugframes statt nur der zwei Randframes. Eine Monte-Carlo-Simulation
+      (2000 Durchläufe, 40-cm-Sprung, ±2 px Pose-Rauschen, Person ≈ 720 px hoch) zeigt, wie stark das
+      die Streuung drückt:
+    </p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><span>Tab. 2 — Standardabweichung der geschätzten Höhe</span><span>Simulation, nur Sampling- und Pose-Rauschen</span></div>
+    <div class="panel-body">
+      <div class="tblwrap">
+        <table>
+          <thead>
+            <tr><th>Framerate</th><th class="num">Frame-Zählung</th><th class="num">Parabel-Fit</th><th class="num">Faktor</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>30 fps</td><td class="num bad">± 1.60 cm</td><td class="num good">± 0.18 cm</td><td class="num">8.9 ×</td></tr>
+            <tr><td>60 fps</td><td class="num bad">± 1.04 cm</td><td class="num good">± 0.13 cm</td><td class="num">8.0 ×</td></tr>
+            <tr><td>120 fps</td><td class="num">± 0.58 cm</td><td class="num good">± 0.09 cm</td><td class="num">6.4 ×</td></tr>
+            <tr><td>240 fps</td><td class="num">± 0.15 cm</td><td class="num good">± 0.06 cm</td><td class="num">2.5 ×</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="callout">
+      <span class="tag">Ehrlichkeitshalber</span>
+      <p>
+        Diese Simulation enthält <strong>nur</strong> Sampling- und Keypoint-Rauschen. In der Realität dominieren
+        systematische Fehler, die kein Fit wegmittelt: Perspektive, Bewegungsunschärfe, Rolling Shutter,
+        und der Bias aus Abschnitt 03. Die Tabelle zeigt, dass der Fit die <em>Wiederholbarkeit</em> massiv
+        verbessert — nicht, dass die App auf 1 mm genau misst.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 03 ============ -->
+<section>
+  <div class="col">
+    <div class="sechead">
+      <span class="num">03</span>
+      <h2>Der 3-cm-Fehler, den fast alle Apps machen</h2>
+    </div>
+    <p>
+      <code>h = g·t²/8</code> gilt nur, wenn der Körperschwerpunkt beim Absprung und bei der Landung
+      <em>gleich hoch</em> ist. Genau das ist er nie: beim Absprung ist der Körper voll gestreckt und
+      steht auf den Zehenspitzen, bei der Landung federt man ab und die Knie sind gebeugt.
+      Der Schwerpunkt fällt also tiefer, als er gestiegen ist — die Flugzeit wird länger,
+      die berechnete Höhe zu gross.
+    </p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><span>Abb. 2 — Warum die Flugzeit überschätzt</span><span>Schwerpunkt-Trajektorie</span></div>
+    <figure>
+      <div class="scroller">
+        <svg viewBox="0 0 840 300" role="img" aria-label="Asymmetrische Flugkurve: der Schwerpunkt landet tiefer als er abgesprungen ist, wodurch die gemessene Flugzeit länger ist als die doppelte Steigzeit.">
+          <defs>
+            <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+
+          <!-- reference levels -->
+          <line x1="60" y1="180" x2="780" y2="180" stroke="currentColor" stroke-width="1.2" stroke-dasharray="4 4" opacity=".4"/>
+          <text x="60" y="172" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor" opacity=".6">Schwerpunkt beim Absprung — gestreckt</text>
+
+          <line x1="60" y1="222" x2="780" y2="222" stroke="var(--event)" stroke-width="1.2" stroke-dasharray="4 4" opacity=".7"/>
+          <text x="60" y="240" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--event)">Schwerpunkt bei der Landung — Knie gebeugt</text>
+
+          <!-- delta bracket -->
+          <line x1="700" y1="180" x2="700" y2="222" stroke="var(--event)" stroke-width="1.6" marker-start="url(#ar2)" marker-end="url(#ar2)"/>
+          <text x="712" y="205" font-family="IBM Plex Mono, monospace" font-size="12" font-weight="600" fill="var(--event)">Δ ≈ 5–8 cm</text>
+
+          <!-- asymmetric trajectory: takeoff at (200,180), apex (400,60), landing (640,222) -->
+          <path d="M 200 180 Q 330 44 420 60" fill="none" stroke="var(--trace)" stroke-width="2.5"/>
+          <path d="M 420 60 Q 530 78 640 222" fill="none" stroke="var(--trace)" stroke-width="2.5"/>
+
+          <circle cx="200" cy="180" r="5.5" fill="var(--event)"/>
+          <circle cx="640" cy="222" r="5.5" fill="var(--event)"/>
+          <circle cx="420" cy="60"  r="5"   fill="var(--trace)"/>
+          <text x="420" y="46" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--trace)" text-anchor="middle" font-weight="600">Scheitel — echte Höhe</text>
+
+          <!-- rise vs fall spans -->
+          <line x1="200" y1="270" x2="420" y2="270" stroke="currentColor" stroke-width="1.4" opacity=".5" marker-start="url(#ar2)" marker-end="url(#ar2)"/>
+          <text x="310" y="288" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="currentColor" opacity=".65" text-anchor="middle">Steigen</text>
+
+          <line x1="420" y1="270" x2="640" y2="270" stroke="var(--event)" stroke-width="1.4" marker-start="url(#ar2)" marker-end="url(#ar2)"/>
+          <text x="530" y="288" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--event)" text-anchor="middle" font-weight="600">Fallen — länger</text>
+
+          <line x1="200" y1="180" x2="200" y2="264" stroke="currentColor" stroke-width="1" opacity=".25"/>
+          <line x1="420" y1="60"  x2="420" y2="264" stroke="currentColor" stroke-width="1" opacity=".25"/>
+          <line x1="640" y1="222" x2="640" y2="264" stroke="currentColor" stroke-width="1" opacity=".25"/>
+        </svg>
+      </div>
+      <figcaption>
+        Die Fallphase ist länger als die Steigphase, weil der Schwerpunkt tiefer landet als er gestartet ist.
+        Die klassische Flugzeitmethode kennt diese Asymmetrie nicht und rechnet die Extrazeit als Höhe an —
+        gemessene <b>Überschätzung rund 3 cm</b>.<sup>[2]</sup> Die App umgeht das, indem sie den <b>Scheitel der
+        gefitteten Hüft-Trajektorie</b> als Höhe nimmt statt der Flugzeit des Fusses.
+      </figcaption>
+    </figure>
+  </div>
+
+  <div class="col">
+    <p>
+      Deshalb rechnet die App drei Schätzer parallel und zeigt alle drei an. Sie sind unterschiedlich
+      anfällig, und ihre Übereinstimmung ist das beste verfügbare Qualitätssignal.
+    </p>
+
+    <div class="formula">
+      <span class="lbl">E1 — Flugzeit (Fuss)</span>
+      h₁ = g · t_f² / 8<br>
+      <span class="note">braucht keine Kalibrierung · überschätzt systematisch · Vergleichswert zu anderen Apps</span>
+    </div>
+
+    <div class="formula">
+      <span class="lbl">E2 — Scheitel der Hüft-Parabel</span>
+      y(t) = y₀ + v₀·t − ½·a·t²  →  h₂ = v₀² / (2a)<br>
+      <span class="note">Referenzwert der App · nutzt alle Flugframes · unempfindlich gegen Landeposition</span>
+    </div>
+
+    <div class="formula">
+      <span class="lbl">E3 — Impuls aus Absprunggeschwindigkeit</span>
+      h₃ = v₀² / (2g)<br>
+      <span class="note">gleiche Fit-Parameter, andere Ableitung · deckt Fit-Fehler auf</span>
+    </div>
+
+    <h3>Der Kalibrierungs-Trick</h3>
+    <p>
+      Für E2 und E3 braucht man eigentlich einen Massstab: wie viele Meter ist ein Pixel? Statt den Nutzer
+      ein Referenzobjekt ins Bild stellen zu lassen, holt die App den Massstab aus der Physik selbst.
+      Die Krümmung der gefitteten Parabel <em>muss</em> der Erdbeschleunigung entsprechen:
+    </p>
+
+    <div class="formula">
+      <span class="lbl">Selbstkalibrierung</span>
+      a_px = 2 · (Krümmungskoeffizient)  &nbsp;<span class="note">[px/s²]</span><br>
+      s = 9.81 / a_px  &nbsp;<span class="note">[m/px]</span><br>
+      h = 9.81 · v₀,px² / (2 · a_px²)  &nbsp;<span class="note">[m]</span>
+    </div>
+
+    <p>
+      Kein Massband, kein Referenzobjekt, keine bekannte Körpergrösse. Der Preis: das Verfahren hängt
+      direkt an korrekten Frame-Zeitstempeln — was uns zum unangenehmsten Detail des ganzen Projekts bringt.
+    </p>
+
+    <div class="callout">
+      <span class="tag">Fallstrick — Variable Framerate</span>
+      <p>
+        Smartphone-Videos sind fast nie exakt konstant in der Framerate, und Slo-Mo-Aufnahmen werden vom
+        Betriebssystem oft bereits verlangsamt exportiert. <code>fps = 240</code> anzunehmen ist ein Fehler,
+        der direkt und quadratisch in die Höhe durchschlägt. Die Pipeline muss die
+        <strong>echten Präsentationszeitstempel (PTS) jedes Frames</strong> aus dem Container lesen
+        (<code>ffprobe -show_frames</code>) und damit rechnen. Weicht die tatsächliche mittlere Framerate stark
+        vom Nominalwert ab, wird das im Report angezeigt.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 04 ============ -->
+<section>
+  <div class="col">
+    <div class="sechead">
+      <span class="num">04</span>
+      <h2>Absprunggeschwindigkeit — der ehrlichere Wert</h2>
+    </div>
+    <p>
+      Die Sprunghöhe ist das, wonach alle fragen. Die Grösse, die dein Körper tatsächlich produziert,
+      ist aber die Vertikalgeschwindigkeit im Moment des Absprungs. Die Höhe ist nur ihre Folge —
+      und weil sie <em>quadratisch</em> folgt, ist sie auch der unruhigere Wert.
+    </p>
+
+    <div class="formula">
+      <span class="lbl">Absprunggeschwindigkeit</span>
+      v₀ = √(2 · g · h) = g · t_f / 2<br>
+      <span class="note">und umgekehrt: h = v₀² / (2g)</span>
+    </div>
+
+    <p>
+      Aus dem Parabel-Fit fällt sie ohne jede Zusatzarbeit heraus: der <b>lineare Koeffizient</b> ist
+      bereits die Geschwindigkeit, der quadratische die Beschleunigung. Mit der Selbstkalibrierung aus
+      Abschnitt 03 wird daraus direkt ein Wert in Metern pro Sekunde:
+    </p>
+
+    <div class="formula">
+      <span class="lbl">Aus dem Fit, ohne Massstab</span>
+      y(t) = y₀ + v₀,px · t − ½ · a_px · t²<br>
+      v₀ = v₀,px · 9.81 / a_px  &nbsp;<span class="note">[m/s]</span>
+    </div>
+
+    <h3>Warum v₀ präziser messbar ist als h</h3>
+    <p>
+      Aus <code>h = v₀²/(2g)</code> folgt <code>Δh/h = 2 · Δv₀/v₀</code>. Jeder relative Fehler
+      <strong>verdoppelt sich auf dem Weg zur Höhe</strong>. Misst die Pipeline die Höhe auf ±2 % genau,
+      ist die Absprunggeschwindigkeit auf ±1 % genau. Für einen Verlauf über Wochen ist v₀ deshalb das
+      ruhigere Signal — die Höhe reagiert doppelt so stark auf Messrauschen wie auf echte Formänderung.
+    </p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><span>Tab. 3 — Umrechnung</span><span>Landung 6 cm tiefer als Absprung angenommen</span></div>
+    <div class="panel-body">
+      <div class="tblwrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Sprunghöhe</th>
+              <th class="num">v₀</th>
+              <th class="num">Flugzeit</th>
+              <th class="num">Landegeschw.</th>
+              <th class="num">Differenz</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>20 cm</td><td class="num">1.98 m/s</td><td class="num">404 ms</td><td class="num">2.26 m/s</td><td class="num">+0.28</td></tr>
+            <tr><td>30 cm</td><td class="num">2.43 m/s</td><td class="num">495 ms</td><td class="num">2.66 m/s</td><td class="num">+0.23</td></tr>
+            <tr class="hl"><td>40 cm</td><td class="num">2.80 m/s</td><td class="num">571 ms</td><td class="num">3.00 m/s</td><td class="num">+0.20</td></tr>
+            <tr><td>50 cm</td><td class="num">3.13 m/s</td><td class="num">639 ms</td><td class="num">3.31 m/s</td><td class="num">+0.18</td></tr>
+            <tr><td>60 cm</td><td class="num">3.43 m/s</td><td class="num">700 ms</td><td class="num">3.60 m/s</td><td class="num">+0.17</td></tr>
+            <tr><td>70 cm</td><td class="num">3.71 m/s</td><td class="num">756 ms</td><td class="num">3.86 m/s</td><td class="num">+0.16</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <h3>Die Landegeschwindigkeit macht den 3-cm-Bias sichtbar</h3>
+    <p>
+      Die gefittete Parabel liefert nicht nur v₀, sondern auch die Geschwindigkeit am anderen Ende:
+      <code>v_land</code>. Die beiden wären identisch, wenn dein Schwerpunkt gleich hoch landen würde,
+      wie er abgesprungen ist. Sie sind es nie — und <strong>die Differenz ist eine direkte Messung
+      deiner persönlichen Landeasymmetrie</strong>, in Zentimetern:
+    </p>
+
+    <div class="formula">
+      <span class="lbl">Absenkung des Schwerpunkts</span>
+      Δ = (v_land² − v₀²) / (2g)<br>
+      <span class="note">genau der Betrag, um den die klassische Flugzeitmethode bei dir zu hoch liegt</span>
+    </div>
+
+    <p>
+      Damit wird aus dem Vorbehalt aus Abschnitt 03 eine Zahl im Report: die App kann anzeigen,
+      um wie viele Zentimeter <code>h₁</code> bei <em>deinem</em> Landestil überschätzt — statt
+      pauschal „etwa 3 cm" aus der Literatur zu übernehmen.
+    </p>
+
+    <h3>Was sich mit deiner Körpermasse noch ergibt</h3>
+    <p>
+      Sobald du dein Gewicht einträgst und die Pipeline die Abdruckdauer aus dem Kontaktsignal kennt,
+      lassen sich zwei weitere Grössen sauber ableiten:
+    </p>
+
+    <div class="formula">
+      <span class="lbl">Impuls und mittlere Kraft</span>
+      J = m · v₀  &nbsp;<span class="note">[Ns]</span><br>
+      F̄ = m · v₀ / t_abdruck + m · g  &nbsp;<span class="note">[N]</span>
+    </div>
+
+    <p>
+      Für 65 kg, v₀ = 2.80 m/s und 250 ms Abdruckdauer: Impuls <strong>182 Ns</strong>,
+      mittlere Kraft <strong>1366 N</strong> — also <strong>2.1 Körpergewichte</strong>.
+      Das ist die aussagekräftigste Zahl im ganzen Report, weil sie Kraft und Schnelligkeit
+      gemeinsam abbildet, während die Höhe beides vermischt.
+    </p>
+
+    <div class="callout">
+      <span class="tag">Grenze — Spitzenleistung</span>
+      <p>
+        Was die App <b>nicht</b> ausgeben sollte, ist Peak Power in Watt. Dafür bräuchte man den
+        Kraft-Zeit-Verlauf während des Abdrucks, und den liefert nur eine Kraftmessplatte.
+        Aus Video ist bloss der <em>Mittelwert</em> über die Abdruckphase seriös. Regressionsformeln
+        wie Sayers oder Lewis existieren, sind aber an bestimmten Populationen kalibriert und werden
+        hier bewusst weggelassen — eine Wattzahl mit ±20 % Unsicherheit sieht präziser aus, als sie ist.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 05 ============ -->
+<section>
+  <div class="col">
+    <div class="sechead">
+      <span class="num">05</span>
+      <h2>Die hybride Erkennungs-Pipeline</h2>
+    </div>
+    <p>
+      Pose-Erkennung und Pixel-Bewegungsanalyse können beide den Absprung finden, aber sie sind auf
+      verschiedene Arten gut. Das Pose-Modell weiss <em>was</em> im Bild ein Knöchel ist und ist robust gegen
+      Hintergrund, Kleidung und Beleuchtung — dafür sind seine Keypoints um mehrere Pixel verrauscht und es
+      erkennt einen 2-Pixel-Spalt zwischen Zehe und Boden nicht. Die Frame-Differenz ist blind für Semantik,
+      löst dafür feinste Änderungen auf.
+    </p>
+    <p>
+      Die Arbeitsteilung ist entsprechend: <strong>Pose sagt, wo man hinschauen muss. Pixel sagt, wann genau
+      es passiert ist.</strong>
+    </p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><span>Abb. 3 — Datenfluss</span><span>Pose- und Pixelzweig, Fusion, Fit</span></div>
+    <figure>
+      <div class="scroller">
+        <svg viewBox="0 0 960 380" role="img" aria-label="Pipeline: Video-Decode speist parallel einen Pose-Zweig und einen Pixel-Differenz-Zweig; der Pose-Zweig definiert die Bild-Region für den Pixel-Zweig; beide fliessen in eine Fusion mit Viterbi-Segmentierung und von dort in den Sub-Frame-Parabel-Fit und die Ergebnisse.">
+          <defs>
+            <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+            </marker>
+            <marker id="ar3t" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--trace)"/>
+            </marker>
+          </defs>
+
+          <g font-family="IBM Plex Sans Condensed, sans-serif" font-size="13.5" font-weight="600" fill="currentColor">
+
+            <!-- decode -->
+            <rect x="14" y="150" width="146" height="80" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+            <text x="87" y="180" text-anchor="middle">Decode</text>
+            <text x="87" y="199" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" font-weight="400" opacity=".65">ffmpeg + PTS</text>
+            <text x="87" y="214" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" font-weight="400" opacity=".65">Stabilisierung</text>
+
+            <!-- pose branch -->
+            <rect x="216" y="40" width="176" height="76" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+            <text x="304" y="68" text-anchor="middle">Pose-Modell</text>
+            <text x="304" y="87" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" font-weight="400" opacity=".65">Knöchel · Zehe · Hüfte</text>
+            <text x="304" y="102" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" font-weight="400" opacity=".65">Bodenlinie</text>
+
+            <!-- pixel branch -->
+            <rect x="216" y="264" width="176" height="76" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+            <text x="304" y="292" text-anchor="middle">Pixel-Differenz</text>
+            <text x="304" y="311" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" font-weight="400" opacity=".65">Boden-ROI · Optical Flow</text>
+            <text x="304" y="326" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" font-weight="400" opacity=".65">Schattenspalt</text>
+
+            <!-- fusion -->
+            <rect x="452" y="150" width="166" height="80" rx="3" fill="none" stroke="var(--trace)" stroke-width="2"/>
+            <text x="535" y="180" text-anchor="middle" fill="var(--trace)">Fusion</text>
+            <text x="535" y="199" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" font-weight="400" fill="var(--trace)" opacity=".8">Kontaktsignal c(n)</text>
+            <text x="535" y="214" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" font-weight="400" fill="var(--trace)" opacity=".8">2-Zustands-Viterbi</text>
+
+            <!-- fit -->
+            <rect x="678" y="150" width="146" height="80" rx="3" fill="none" stroke="var(--trace)" stroke-width="2"/>
+            <text x="751" y="180" text-anchor="middle" fill="var(--trace)">Parabel-Fit</text>
+            <text x="751" y="199" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" font-weight="400" fill="var(--trace)" opacity=".8">Hüfte · RANSAC</text>
+            <text x="751" y="214" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" font-weight="400" fill="var(--trace)" opacity=".8">Sub-Frame-Nullstellen</text>
+
+            <!-- outputs -->
+            <rect x="866" y="94" width="86" height="46" rx="3" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".7"/>
+            <text x="909" y="115" text-anchor="middle" font-size="12">Flugzeit</text>
+            <text x="909" y="130" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" font-weight="400" opacity=".7">t_f</text>
+
+            <rect x="866" y="167" width="86" height="46" rx="3" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".7"/>
+            <text x="909" y="188" text-anchor="middle" font-size="12">Höhe · v₀</text>
+            <text x="909" y="203" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" font-weight="400" opacity=".7">h₁ h₂ h₃</text>
+
+            <rect x="866" y="240" width="86" height="46" rx="3" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".7"/>
+            <text x="909" y="261" text-anchor="middle" font-size="12">Güte</text>
+            <text x="909" y="276" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" font-weight="400" opacity=".7">R² · Spread</text>
+          </g>
+
+          <!-- arrows -->
+          <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#ar3)">
+            <path d="M 160 178 L 190 178 L 190 78 L 210 78"/>
+            <path d="M 160 202 L 190 202 L 190 302 L 210 302"/>
+            <path d="M 392 78 L 424 78 L 424 168 L 446 168"/>
+            <path d="M 392 302 L 424 302 L 424 212 L 446 212"/>
+          </g>
+          <g stroke="var(--trace)" stroke-width="1.8" fill="none" marker-end="url(#ar3t)">
+            <path d="M 618 190 L 672 190"/>
+            <path d="M 824 190 L 846 190 L 846 117 L 860 117"/>
+            <path d="M 824 190 L 860 190"/>
+            <path d="M 824 190 L 846 190 L 846 263 L 860 263"/>
+          </g>
+
+          <!-- ROI hand-off (dashed, the division of labour) -->
+          <path d="M 304 116 L 304 264" stroke="currentColor" stroke-width="1.4" stroke-dasharray="5 4" fill="none" marker-end="url(#ar3)" opacity=".55"/>
+
+          <!-- edge labels -->
+          <g font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".62">
+            <text x="186" y="120" text-anchor="end">Frames + t(n)</text>
+            <text x="186" y="252" text-anchor="end">Frames + t(n)</text>
+            <text x="412" y="118" text-anchor="end">Trajektorien</text>
+            <text x="412" y="262" text-anchor="end">Bewegungsenergie</text>
+            <text x="314" y="196" font-weight="500">definiert ROI</text>
+          </g>
+          <text x="645" y="182" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--trace)" opacity=".85">Flugfenster</text>
+        </svg>
+      </div>
+      <figcaption>
+        Der gestrichelte Pfeil ist der Kern der Hybridlösung: der Pose-Zweig schneidet aus dem Bild einen schmalen
+        Streifen um Zehe und Bodenlinie, und <b>nur dort</b> misst der Pixel-Zweig Bewegungsenergie.
+        Das macht die Frame-Differenz unempfindlich gegen alles, was sonst im Bild passiert.
+      </figcaption>
+    </figure>
+  </div>
+
+  <div class="col"><h3>Die Stufen im Detail</h3></div>
+
+  <div class="stages">
+    <div class="stage">
+      <span class="sn">S0</span>
+      <h4>Ingest &amp; Normalisierung</h4>
+      <div class="sbody">
+        <p>Decode via <code>ffmpeg</code>, aber <b>Zeitstempel pro Frame aus dem Container lesen</b>, nicht die nominelle
+        Framerate annehmen. Rotation aus den Metadaten anwenden. Anschliessend globale Bewegungsschätzung auf
+        Hintergrund-Features (ORB + RANSAC-Homographie) und Rückrechnung — damit kompensiert die Pipeline
+        Kamerawackeln, was der Pixelzweig zwingend braucht.</p>
+      </div>
+    </div>
+
+    <div class="stage">
+      <span class="sn">S1</span>
+      <h4>Pose-Zweig</h4>
+      <div class="sbody">
+        <p>Pro Frame die Keypoints extrahieren, davon relevant: <b>Knöchel, Fussspitze, Ferse, beide Hüften</b>.
+        Der Mittelpunkt der Hüftgelenke dient als Schwerpunkt-Proxy. Danach:</p>
+        <ul>
+          <li><b>Bodenlinie</b> = Median der Knöchelhöhe über die Standphase vor dem Absprung</li>
+          <li><b>Körperskala</b> in Pixeln (Knöchel bis Schulter) zur Normierung aller Schwellwerte</li>
+          <li>Glättung mit Savitzky-Golay statt gleitendem Mittel — behält die Krümmung, die wir später fitten</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="stage">
+      <span class="sn">S2</span>
+      <h4>Pixel-Zweig</h4>
+      <div class="sbody">
+        <p>Im vom Pose-Zweig definierten Streifen (ca. 1.5 Fusslängen breit, 0.3 Fusslängen hoch, an der
+        Bodenlinie zentriert) drei Signale pro Frame:</p>
+        <ul>
+          <li><b>Differenzenergie</b> zum stabilisierten Vorframe — springt hoch, sobald sich der Fuss löst</li>
+          <li><b>Vertikaler Optical Flow</b> (Farnebäck oder Lucas-Kanade) im Fussbereich → Vorzeichenwechsel markiert Umkehrpunkte</li>
+          <li><b>Spaltbreite</b>: Zeilenprofil unter der Zehe, misst den Kontrastbruch zwischen Fuss und Boden bzw. Schatten</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="stage">
+      <span class="sn">S3</span>
+      <h4>Fusion zum Kontaktsignal</h4>
+      <div class="sbody">
+        <p>Die Signale beider Zweige werden auf <code>[0,1]</code> normiert und gewichtet zu einem Kontaktsignal
+        <code>c(n)</code> zusammengeführt. Statt einer harten Schwelle läuft darüber ein
+        <b>Zwei-Zustands-Hidden-Markov-Modell (Kontakt / Flug) mit Viterbi-Dekodierung</b>. Das erzwingt eine global
+        konsistente Segmentierung und verhindert das Flackern, das eine Schwelle bei verrauschten Frames erzeugt.
+        Ergebnis: ein grob framegenaues Flugfenster <code>[n₀, n₁]</code>.</p>
+      </div>
+    </div>
+
+    <div class="stage">
+      <span class="sn">S4</span>
+      <h4>Sub-Frame-Verfeinerung</h4>
+      <div class="sbody">
+        <p>Auf die Hüfthöhe innerhalb <code>[n₀+1, n₁−1]</code> wird per <b>RANSAC eine Parabel gefittet</b> — die
+        Randframes bleiben draussen, weil dort Bewegungsunschärfe die Keypoints verzieht. Die Nullstellen relativ
+        zur Absprunghöhe liefern <code>t₀</code> und <code>t₁</code> als Fliesskommazahlen. Parallel wird das
+        Kontaktsignal an den beiden Übergängen linear interpoliert; die Differenz beider Methoden fliesst in den
+        Gütewert ein.</p>
+      </div>
+    </div>
+
+    <div class="stage">
+      <span class="sn">S5</span>
+      <h4>Physik &amp; Gütebewertung</h4>
+      <div class="sbody">
+        <p>Berechnung von <b>E1, E2, E3</b> aus Abschnitt 03 plus abgeleitete Metriken: Bodenkontaktzeit,
+        Absprunggeschwindigkeit, bei Drop Jumps der <b>Reactive Strength Index</b> (Höhe ÷ Kontaktzeit).
+        Der Gütewert kombiniert R² des Fits, die Spannweite zwischen E1/E2/E3, Anzahl Flugframes und
+        mittlere Keypoint-Konfidenz. <b>Unter Schwelle wird kein Wert ausgegeben, sondern der Grund benannt</b> —
+        „nur 7 Flugframes erfasst, bitte in Slo-Mo aufnehmen" ist nützlicher als eine falsche Zahl.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 06 ============ -->
+<section>
+  <div class="col">
+    <div class="sechead">
+      <span class="num">06</span>
+      <h2>Architektur</h2>
+    </div>
+    <p>
+      Ausgelegt auf einen Nutzer im Homelab, nicht auf tausend. Das heisst: so wenig bewegliche Teile wie
+      möglich, alles in einem <code>docker compose up</code>.
+    </p>
+  </div>
+
+  <div class="kv">
+    <div><dt>Frontend</dt><dd><span class="big">Next.js</span><br>Upload, Video-Player mit Frame-Stepper, Canvas-Overlay für Skelett und Trajektorie</dd></div>
+    <div><dt>API</dt><dd><span class="big">FastAPI</span><br>Upload, Job-Start, Polling, Verlauf. Pydantic-Schemas als Single Source of Truth</dd></div>
+    <div><dt>Worker</dt><dd><span class="big">arq + Redis</span><br>Eine Analyse dauert 10–90 s — das darf keinen Request blockieren</dd></div>
+    <div><dt>Vision</dt><dd><span class="big">OpenCV + MediaPipe</span><br>CPU reicht. Mit GPU: RTMPose via ONNX Runtime</dd></div>
+    <div><dt>Daten</dt><dd><span class="big">SQLite</span><br>Videos und Keypoint-Arrays als Dateien auf Disk, Pfade in der DB</dd></div>
+    <div><dt>Deployment</dt><dd><span class="big">Docker Compose</span><br>Vier Container: web, api, worker, redis</dd></div>
+  </div>
+
+  <div class="col">
+    <div class="callout">
+      <span class="tag">Empfehlung</span>
+      <p>
+        Bau S0–S5 zuerst als reines <b>CLI-Skript</b>, das ein Video frisst und JSON ausspuckt. Erst wenn die
+        Zahlen an einem Video stimmen, das du mit einem Massband gegengeprüft hast, kommt HTTP drumherum.
+        Umgekehrt verbringt man drei Wochenenden mit Upload-Handling und weiss immer noch nicht,
+        ob die Erkennung funktioniert.
+      </p>
+    </div>
+
+    <h3>API-Oberfläche</h3>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><span>REST</span><span>v1</span></div>
+    <div class="panel-body">
+      <div class="api">
+        <div>
+          <span class="verb post">POST</span><span>/api/videos</span>
+          <span class="desc">Chunked Upload. Antwortet mit <code>video_id</code>, erkannter Framerate, Auflösung und einer Warnung, falls unter 120 fps.</span>
+        </div>
+        <div>
+          <span class="verb post">POST</span><span>/api/analyses</span>
+          <span class="desc"><code>{video_id, jump_type, trim?}</code> → <code>job_id</code>. <code>jump_type</code> ∈ CMJ, SJ, Drop Jump, Hops.</span>
+        </div>
+        <div>
+          <span class="verb get">GET</span><span>/api/analyses/{id}</span>
+          <span class="desc">Status, alle drei Höhenschätzer, Flugzeit, Absprung- und Landegeschwindigkeit, Gütewert, Absprung- und Landeframe als Fliesskommazahl.</span>
+        </div>
+        <div>
+          <span class="verb get">GET</span><span>/api/analyses/{id}/track</span>
+          <span class="desc">Keypoints und Kontaktsignal pro Frame — das Overlay im Player rendert daraus.</span>
+        </div>
+        <div>
+          <span class="verb post">POST</span><span>/api/analyses/{id}/correct</span>
+          <span class="desc">Manuell korrigierte Ereignisframes. Rechnet neu und markiert das Ergebnis als korrigiert.</span>
+        </div>
+        <div>
+          <span class="verb get">GET</span><span>/api/sessions</span>
+          <span class="desc">Verlauf über die Zeit, gefiltert nach Sprungtyp. Optional als CSV.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <h3>Datenmodell</h3>
+    <ul>
+      <li><code>video</code> — Datei, Dauer, echte mittlere fps, Auflösung, Upload-Zeit</li>
+      <li><code>analysis</code> — FK Video, Sprungtyp, Status, Pipeline-Version, Gütewert, ob korrigiert</li>
+      <li><code>result</code> — <code>t_f</code>, <code>h1</code>, <code>h2</code>, <code>h3</code>, <code>v0</code>, Kontaktzeit, RSI, <code>takeoff_frame</code>, <code>landing_frame</code> (float)</li>
+      <li><code>track</code> — Keypoints als NPZ auf Disk, in der DB nur Pfad und Checksumme</li>
+    </ul>
+    <p>
+      <b>Pipeline-Version an jedem Ergebnis speichern.</b> Sobald du die Erkennung verbesserst, willst du wissen,
+      welche alten Werte noch vergleichbar sind — sonst sieht ein Algorithmus-Update im Verlauf aus wie ein Formhoch.
+    </p>
+  </div>
+</section>
+
+<!-- ============ 07 ============ -->
+<section>
+  <div class="col">
+    <div class="sechead">
+      <span class="num">07</span>
+      <h2>Der Screen, der über alles entscheidet</h2>
+    </div>
+    <p>
+      Nach der Analyse landet man nicht auf einer Zahl, sondern auf einem <strong>Review-Screen</strong>:
+      Video-Player mit Frame-Stepper, das erkannte Skelett und die gefittete Parabel als Overlay, und die
+      zwei Ereignisframes als Marker auf der Timeline. Darunter das Kontaktsignal <code>c(n)</code> als
+      Kurve, ausgerichtet auf die Timeline.
+    </p>
+    <p>
+      Zwei Buttons erlauben, Absprung und Landung um ±1 Frame zu verschieben. Das ist keine Notlösung,
+      sondern der wichtigste Screen der App: man <em>sieht</em>, ob die Erkennung recht hat, statt einer Zahl
+      glauben zu müssen. Und jede Korrektur ist ein gelabeltes Beispiel, mit dem sich die Fusionsgewichte
+      später kalibrieren lassen.
+    </p>
+
+    <h3>Aufnahme-Anleitung, direkt in der App</h3>
+    <p>
+      Die Bildqualität entscheidet mehr über das Ergebnis als jeder Algorithmus. Die App zeigt die Regeln
+      beim ersten Upload und prüft, was prüfbar ist:
+    </p>
+    <ul>
+      <li><b>Slo-Mo einschalten</b> — 240 fps wenn möglich, mindestens 120</li>
+      <li><b>Kurze Belichtungszeit</b> — bei 1/60 s legt der Fuss während der Belichtung mehrere Zentimeter zurück und verschmiert. Hell aufnehmen, damit die Automatik kurz belichtet</li>
+      <li><b>Handy quer auf ein Stativ</b>, Kamerahöhe etwa Hüfthöhe, 3–4 m Abstand</li>
+      <li><b>Senkrecht zur Sprungebene</b> filmen und nicht vor- oder zurückspringen — sonst ändert sich der Massstab mitten im Sprung</li>
+      <li><b>Ganzer Körper im Bild</b>, inklusive Füsse im Scheitelpunkt</li>
+      <li><b>Enge Kleidung, kontrastreicher Boden.</b> Weite Hosen sind der häufigste Grund für schlechte Knöchel-Keypoints</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ 08 ============ -->
+<section>
+  <div class="col">
+    <div class="sechead">
+      <span class="num">08</span>
+      <h2>Umsetzung in Etappen</h2>
+    </div>
+    <p>
+      Jede Etappe endet mit etwas Benutzbarem. Die Reihenfolge ist so gewählt, dass das grösste Risiko —
+      funktioniert die Erkennung überhaupt? — als Erstes beantwortet wird.
+    </p>
+  </div>
+
+  <div class="miles">
+    <div class="mile">
+      <span class="tag">M0<span class="wk">1 Wochenende</span></span>
+      <h4>Beweis, dass es geht</h4>
+      <div class="m-body">CLI-Skript: Video rein, JSON raus. Nur Pose-Zweig, nur Frame-Zählung, keine Verfeinerung.
+      <b>Ziel: eine Zahl, die grob stimmt.</b> Gegen ein Video prüfen, bei dem du dich neben einer Wand mit
+      Markierung abgesprungen bist.</div>
+    </div>
+    <div class="mile">
+      <span class="tag">M1<span class="wk">1–2 Wochen</span></span>
+      <h4>Genauigkeit</h4>
+      <div class="m-body">PTS-Zeitstempel, Stabilisierung, Pixel-Zweig, Fusion mit Viterbi, RANSAC-Parabel,
+      Selbstkalibrierung, alle drei Schätzer. <b>Ziel: über zehn Wiederholungen desselben Sprungs eine
+      Standardabweichung unter 1 cm.</b></div>
+    </div>
+    <div class="mile">
+      <span class="tag">M2<span class="wk">1 Woche</span></span>
+      <h4>Web drumherum</h4>
+      <div class="m-body">FastAPI, arq-Worker, SQLite, minimales Next.js-Frontend mit Upload und Ergebnisseite.
+      Docker Compose. <b>Ziel: vom Handy hochladen und ein Resultat sehen.</b></div>
+    </div>
+    <div class="mile">
+      <span class="tag">M3<span class="wk">1–2 Wochen</span></span>
+      <h4>Review-Screen</h4>
+      <div class="m-body">Frame-Stepper, Skelett- und Trajektorien-Overlay, Kontaktsignal-Kurve,
+      manuelle ±1-Frame-Korrektur. <b>Der Screen, der die App vertrauenswürdig macht.</b></div>
+    </div>
+    <div class="mile">
+      <span class="tag">M4<span class="wk">1 Woche</span></span>
+      <h4>Verlauf</h4>
+      <div class="m-body">Sprungtypen (CMJ, SJ, Drop Jump, Hops), Reactive Strength Index, Verlaufsdiagramm,
+      CSV-Export. Pipeline-Version an jedem Ergebnis.</div>
+    </div>
+    <div class="mile">
+      <span class="tag">M5<span class="wk">laufend</span></span>
+      <h4>Validierung</h4>
+      <div class="m-body">Systematischer Vergleich gegen eine externe Referenz — siehe unten.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 09 ============ -->
+<section>
+  <div class="col">
+    <div class="sechead">
+      <span class="num">09</span>
+      <h2>Wie du prüfst, ob es stimmt</h2>
+    </div>
+    <p>
+      Ohne Kraftmessplatte gibt es trotzdem harte Referenzen — die erste ist die beste, weil sie
+      die Pipeline gegen reine Physik testet, ohne dass ein Mensch springen muss:
+    </p>
+    <ul>
+      <li>
+        <b>Ballwurf-Test.</b> Wirf einen Ball senkrecht hoch und lass die Pipeline die Parabel fitten.
+        Der Krümmungskoeffizient <em>muss</em> 9.81 m/s² ergeben. Weicht er ab, liegt es an den
+        Frame-Zeitstempeln oder am Rolling Shutter — und du weisst es, bevor du Sprungdaten interpretierst.
+      </li>
+      <li>
+        <b>Fallhöhen-Test.</b> Lass einen Gegenstand aus gemessener Höhe fallen. Die App muss die
+        gemessene Höhe zurückliefern; die Abweichung ist dein systematischer Fehler.
+      </li>
+      <li>
+        <b>Wandmarkierung.</b> Klassischer Reach-and-Jump gegen eine markierte Wand, gleichzeitig gefilmt.
+        Misst etwas leicht anderes (Reichhöhe statt Schwerpunkt), zeigt aber jeden groben Fehler.
+      </li>
+      <li>
+        <b>Wiederholbarkeit.</b> Zehn identische Sprünge in einer Session. Die Streuung der App muss
+        deutlich kleiner sein als deine tatsächliche Tagesform-Schwankung, sonst misst du Rauschen.
+      </li>
+    </ul>
+
+    <h3>Was die App nicht können wird</h3>
+    <ul>
+      <li>Bei <b>30-fps-Video ohne Slo-Mo</b> bleibt der Fehler in der Grössenordnung mehrerer Zentimeter — der Parabel-Fit senkt die Streuung, nicht die Bewegungsunschärfe.</li>
+      <li><b>Rolling Shutter</b> verzerrt schnelle Vertikalbewegung; bei billigen Sensoren im Slo-Mo-Modus ist das messbar.</li>
+      <li><b>Perspektivfehler:</b> Bewegung zur Kamera hin oder weg ändert den Massstab mitten im Sprung. Nur durch Aufnahmedisziplin lösbar.</li>
+      <li>Absolutwerte sind <b>nicht mit einer Kraftmessplatte vergleichbar</b>. Die App misst deinen Fortschritt gegen dich selbst — dafür ist Wiederholbarkeit wichtiger als absolute Richtigkeit.</li>
+    </ul>
+  </div>
+
+  <footer class="end">
+    <p><b>Quellen</b></p>
+    <ol>
+      <li>Pueo B. et al., <a href="https://www.termedia.pl/Accuracy-of-flight-time-and-countermovement-jump-height-estimated-from-videos-at-different-frame-rates-with-MyJump,78,47475,0,1.html" target="_blank" rel="noopener">Accuracy of flight time and countermovement-jump height estimated from videos at different frame rates with MyJump</a>, Biology of Sport, 2023.</li>
+      <li><a href="https://journals.humankinetics.com/view/journals/ijspp/20/1/article-p56.xml" target="_blank" rel="noopener">Flight-Time Method Modified: Development of a Novel and More Accurate Method for Measuring Vertical Jump Height Using a Smartphone Application</a>, Int. J. Sports Physiology and Performance 20(1), 2024.</li>
+    </ol>
+    <p>Fehlerrechnung und Monte-Carlo-Simulation in Tab. 1 und 2 numerisch geprüft, g = 9.81 m/s².</p>
+  </footer>
+</section>
+
+</div>

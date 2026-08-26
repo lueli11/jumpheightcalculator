@@ -1,0 +1,47 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    ports: ["8000:8000"]
+    environment:
+      REDIS_URL: redis://redis:6379
+      JUMPHEIGHTCALCULATOR_DATA: /data
+    volumes: ["jumpheightcalculator-data:/data"]
+    depends_on:
+      redis: { condition: service_healthy }
+
+  worker:
+    build: .
+    restart: unless-stopped
+    command: ["arq", "jumpheightcalculator.worker.WorkerSettings"]
+    environment:
+      REDIS_URL: redis://redis:6379
+      JUMPHEIGHTCALCULATOR_DATA: /data
+    volumes: ["jumpheightcalculator-data:/data"]
+    depends_on:
+      redis: { condition: service_healthy }
+
+  web:
+    build:
+      context: ./web
+      args:
+        # Leer = Browser spricht Port 8000 desselben Hosts an (Heimnetz).
+        # Hinter einem Reverse Proxy hier die oeffentliche API-Adresse eintragen,
+        # z.B. https://jumpheightcalculator-api.dokploy.jonasleuenberger.com
+        NEXT_PUBLIC_API_BASE: "${NEXT_PUBLIC_API_BASE:-}"
+    restart: unless-stopped
+    ports: ["3000:3000"]
+    environment:
+      JUMPHEIGHTCALCULATOR_API: http://api:8000
+    depends_on: [api]
+
+volumes:
+  jumpheightcalculator-data:
