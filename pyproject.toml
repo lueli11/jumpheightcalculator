@@ -25,6 +25,12 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 packages = ["jumpheightcalculator"]
 
+# Das Pose-Modell muss mitinstalliert werden. Ohne diese Zeile landet nur der
+# Python-Code in site-packages, und zur Laufzeit fehlt die .task-Datei - genau
+# so ist der erste Deploy gescheitert.
+[tool.setuptools.package-data]
+jumpheightcalculator = ["models/*.task"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["slow: braucht generierte Videos, laeuft ueber eine Minute"]

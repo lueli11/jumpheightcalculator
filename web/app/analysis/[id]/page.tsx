@@ -235,6 +235,10 @@ export default function Review() {
       {typeof result.impulse === "number" ? (
         <>
           <h2>Mit deinem Gewicht</h2>
+          <p className="sub" style={{ fontSize: 13.5, marginTop: -4 }}>
+            J = m · v₀ und F̄ = m · v₀ / t_abdruck + m · g. Keine Wattzahlen:
+            Peak Power braucht eine Kraftmessplatte.
+          </p>
           <div className="grid">
             <div><dt>Absprungimpuls</dt><dd className="mono">
               {num(result.impulse, 1)} Ns</dd></div>
@@ -248,8 +252,9 @@ export default function Review() {
         </>
       ) : (
         <p className="sub" style={{ fontSize: 14 }}>
-          Ohne Gewicht keine Impuls- und Kraftwerte - Höhe, Geschwindigkeit und
-          Flugzeit brauchen es nicht.
+          Ohne Gewicht keine Impuls- und Kraftwerte (J = m · v₀ und
+          F̄ = m · v₀ / t_abdruck + m · g). Höhe, Geschwindigkeit und Flugzeit
+          brauchen es nicht.
         </p>
       )}
 

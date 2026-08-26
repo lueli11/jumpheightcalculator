@@ -55,11 +55,21 @@ export default function Upload() {
         </div>
       </form>
 
-      <p className="sub" style={{ marginTop: -8, fontSize: 14 }}>
-        Das Gewicht ist <b>optional</b>. Es wird nur für den Absprungimpuls und die
-        mittlere Kraft beim Abdruck gebraucht. Sprunghöhe, Absprunggeschwindigkeit
-        und Flugzeit kommen ohne aus.
-      </p>
+      <div className="panel" style={{ fontSize: 14.5 }}>
+        <b>Das Gewicht ist optional.</b> Es wird für genau zwei Grössen gebraucht:
+        <div className="mono" style={{ margin: "10px 0", lineHeight: 1.8 }}>
+          J = m · v₀ &nbsp;&nbsp;<span style={{ opacity: 0.6 }}>Absprungimpuls [Ns]</span>
+          <br />
+          F̄ = m · v₀ / t_abdruck + m · g &nbsp;&nbsp;
+          <span style={{ opacity: 0.6 }}>mittlere Kraft [N]</span>
+        </div>
+        Höhe, Absprunggeschwindigkeit und Flugzeit kommen ohne aus.
+        <p style={{ margin: "10px 0 0" }}>
+          <b>Wattzahlen gibt es bewusst nicht.</b> Peak Power braucht eine
+          Kraftmessplatte - aus Video ist nur der Mittelwert über die Abdruckphase
+          seriös.
+        </p>
+      </div>
 
       {warn && <div className="panel warn" data-testid="warning">{warn}</div>}
       {err && <div className="panel err" data-testid="error">{err}</div>}

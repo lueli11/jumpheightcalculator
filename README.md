@@ -45,6 +45,21 @@ Slo-Mo ab 120 fps (240 ist besser), kurze Belichtung, Handy quer auf ein Stativ
 so hoch wie möglich, 3-4 m Abstand, senkrecht zur Sprungebene, ganzer Körper
 im Bild, enge Kleidung, kontrastreicher Boden.
 
+## Das Gewicht
+
+Das Gewicht ist **optional**. Es wird für genau zwei Grössen gebraucht:
+
+    J = m · v₀                          Absprungimpuls        [Ns]
+    F̄ = m · v₀ / t_abdruck + m · g      mittlere Kraft        [N]
+
+Höhe, Absprunggeschwindigkeit und Flugzeit kommen ohne aus.
+
+**Wattzahlen gibt es bewusst nicht.** Peak Power braucht den Kraft-Zeit-Verlauf
+einer Kraftmessplatte; aus Video ist nur der Mittelwert über die Abdruckphase
+seriös. Regressionsformeln wie Sayers oder Lewis sind an bestimmten
+Populationen kalibriert und bleiben draussen - eine Wattzahl mit ±20 %
+Unsicherheit sieht präziser aus, als sie ist.
+
 ## Was gemessen wird
 
 `E2` ist der Referenzwert: der Scheitel der gefitteten Hüfte-Parabel. `E1` aus
