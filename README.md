@@ -4,16 +4,16 @@ Misst Flugzeit, Absprunggeschwindigkeit und Sprunghoehe aus einem Handyvideo.
 
 ## Deployen
 
-Hinter einem Reverse Proxy (Dokploy, Traefik, NPM) - die Container
-veroeffentlichen bewusst keine Host-Ports, das Routing macht der Proxy:
-
     docker compose up --build -d
 
-Ohne Proxy, direkt auf Ports:
+Danach: Web-Oberflaeche auf Port **3050**, API auf Port **8000** (Doku unter
+`/docs`). Beide sind verstellbar:
 
-    docker compose -f docker-compose.yml -f docker-compose.local.yml up --build -d
+    WEB_PORT=3050 API_PORT=8000 docker compose up --build -d
 
-Danach: Web-Oberflaeche auf Port **3000**, API auf Port **8000** (Doku unter `/docs`).
+Port 3000 ist bewusst nicht die Voreinstellung - auf einem Dokploy-Host laeuft
+dort Dokploy selbst. Wer `API_PORT` aendert, muss auch `NEXT_PUBLIC_API_BASE`
+setzen, sonst sucht der Browser die API weiterhin auf 8000.
 Vier Container: `web`, `api`, `worker`, `redis`. Videos und Datenbank liegen im
 Volume `jumpheightcalculator-data`.
 
@@ -29,6 +29,15 @@ Beide Ports muessen vom Handy aus erreichbar sein.
     py -3.12 -m venv .venv
     .venv/Scripts/pip install -e ".[dev]"
     .venv/Scripts/python -m jumpheightcalculator analyze VIDEO.MOV --jump-type cmj --mass-kg 65
+
+Weboberflaeche lokal, in drei Terminals:
+
+    .venv/Scripts/python -m uvicorn jumpheightcalculator.api:app --port 8000
+    .venv/Scripts/python scripts/local_worker.py
+    cd web && npm run dev
+
+Dann http://localhost:3050 . `local_worker.py` ersetzt den arq-Worker auf
+Maschinen ohne Redis.
 
 ## Aufnehmen
 

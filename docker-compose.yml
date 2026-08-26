@@ -10,12 +10,11 @@ services:
   api:
     build: .
     restart: unless-stopped
-    # Keine Host-Ports: hinter Dokploys Traefik werden die Container ueber das
-    # Docker-Netz per Host-Header erreicht, dafuer sind die Domains da. Ein
-    # veroeffentlichter Port kollidiert dort ausserdem mit Dokploy selbst, das
-    # auf 3000 laeuft. Fuer ein blosses `docker compose up` ohne Traefik siehe
-    # docker-compose.local.yml.
-    expose: ["8000"]
+    # Port 3000 ist auf einem Dokploy-Host von Dokploy selbst belegt - der erste
+    # Deploy scheiterte daran. Beide Ports sind darum ueber Umgebungsvariablen
+    # verstellbar. Wer nur ueber Traefik/Domains zugreift, braucht sie nicht,
+    # sie stoeren dort aber auch nicht.
+    ports: ["${API_PORT:-8000}:8000"]
     environment:
       REDIS_URL: redis://redis:6379
       JUMPHEIGHTCALCULATOR_DATA: /data
@@ -43,7 +42,7 @@ services:
         # z.B. https://jumpheightcalculator-api.dokploy.jonasleuenberger.com
         NEXT_PUBLIC_API_BASE: "${NEXT_PUBLIC_API_BASE:-}"
     restart: unless-stopped
-    expose: ["3000"]
+    ports: ["${WEB_PORT:-3050}:3000"]
     environment:
       JUMPHEIGHTCALCULATOR_API: http://api:8000
     depends_on: [api]

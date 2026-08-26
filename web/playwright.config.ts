@@ -8,6 +8,6 @@ export default defineConfig({
   // Vorschauvideo ist H.264, weil es das fuer iOS sein muss - im Test bleibt die
   // Videospur deshalb leer. Das Overlay wird trotzdem geprueft, weil die Buehne
   // ihr Seitenverhaeltnis aus den Trackdaten bezieht, nicht aus dem Video.
-  use: { baseURL: "http://localhost:3000", trace: "retain-on-failure" },
+  use: { baseURL: "http://localhost:3050", trace: "retain-on-failure" },
   reporter: [["list"]],
 });

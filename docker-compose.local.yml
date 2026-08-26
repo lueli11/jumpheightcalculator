@@ -1,11 +1,4 @@
-# Nur fuer ein blosses `docker compose up` ohne Reverse Proxy:
-#
-#     docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
-#
-# Auf einem Dokploy-Host **nicht** verwenden - dort belegt Dokploy selbst den
-# Port 3000, und Traefik erreicht die Container ohnehin ueber das Docker-Netz.
-services:
-  api:
-    ports: ["8000:8000"]
-  web:
-    ports: ["3000:3000"]
+# Diese Datei wird nicht mehr gebraucht: docker-compose.yml veroeffentlicht die
+# Ports jetzt selbst (WEB_PORT, Voreinstellung 3050 - API_PORT, Voreinstellung
+# 8000). Sie bleibt nur als Hinweis stehen und wird beim naechsten Aufraeumen
+# entfernt.
