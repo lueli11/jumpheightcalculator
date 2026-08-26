@@ -2,8 +2,15 @@ FROM python:3.12-slim
 
 # ffmpeg/ffprobe sind Pflicht, nicht optional: die Zeitachse kommt aus den
 # Container-Zeitstempeln (R1), und decodiert wird ueber die ffmpeg-Rohpipe.
+#
+# libegl1 und libgles2 braucht MediaPipe auch headless. Ohne sie stirbt der
+# Worker beim Import mit "libEGL.so.1: cannot open shared object file" - das
+# Image baut sauber durch, und erst die erste echte Analyse faellt um.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg libgl1 libglib2.0-0 \
+    && apt-get install -y --no-install-recommends \
+        ffmpeg \
+        libgl1 libglib2.0-0 \
+        libegl1 libgles2 libgomp1 \
     && apt-get clean \
     && find /var/lib/apt/lists -mindepth 1 -delete
 
@@ -11,6 +18,10 @@ WORKDIR /app
 COPY pyproject.toml ./
 COPY jumpheightcalculator ./jumpheightcalculator
 RUN pip install --no-cache-dir .
+
+# MediaPipe schon beim Bauen importieren, nicht erst zur Laufzeit: fehlt eine
+# Systembibliothek, soll der Build scheitern und nicht der erste Job des Nutzers.
+RUN python -c "import mediapipe, cv2; print('mediapipe', mediapipe.__version__, 'cv2', cv2.__version__)"
 
 # Das Pose-Modell liegt im Image, nicht im Volume: ein Download zur Laufzeit
 # machte den Start vom Netz abhaengig und die Ergebnisse von der Tagesform des
