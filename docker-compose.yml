@@ -42,7 +42,7 @@ services:
         # z.B. https://jumpheightcalculator-api.dokploy.jonasleuenberger.com
         NEXT_PUBLIC_API_BASE: "${NEXT_PUBLIC_API_BASE:-}"
     restart: unless-stopped
-    ports: ["${WEB_PORT:-3050}:3000"]
+    ports: ["${WEB_PORT:-3050}:3050"]
     environment:
       JUMPHEIGHTCALCULATOR_API: http://api:8000
     depends_on: [api]

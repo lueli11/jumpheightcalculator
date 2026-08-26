@@ -6,7 +6,7 @@ Misst Flugzeit, Absprunggeschwindigkeit und Sprunghöhe aus einem Handyvideo.
 
     docker compose up --build -d
 
-Danach: Web-Oberflaeche auf Port **3050**, API auf Port **8000** (Doku unter
+Danach: Weboberflaeche auf Port **3050**, API auf Port **8000** (Doku unter
 `/docs`). Beide sind verstellbar:
 
     WEB_PORT=3050 API_PORT=8000 docker compose up --build -d

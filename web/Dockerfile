@@ -15,9 +15,13 @@ RUN npm run build
 
 FROM node:22-slim
 WORKDIR /app
-ENV NODE_ENV=production JUMPHEIGHTCALCULATOR_API=http://api:8000 PORT=3000
+# Der Container lauscht auf **3050**, derselben Zahl wie der Host-Port. Vorher
+# war es 3000 innen und 3050 aussen - und weil Traefik die Container ueber das
+# Docker-Netz anspricht, nicht ueber den Host, gehoerte in die Domain-Konfiguration
+# der Container-Port. Das hat verlaesslich zu 502 gefuehrt. Eine Zahl fuer alles.
+ENV NODE_ENV=production JUMPHEIGHTCALCULATOR_API=http://api:8000 PORT=3050
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
-EXPOSE 3000
+EXPOSE 3050
 CMD ["node", "server.js"]
