@@ -102,7 +102,8 @@ def track(info: VideoInfo, *, dark: bool = True) -> tuple[np.ndarray, np.ndarray
 
 
 def analyze(path: str | Path, *, seed: int = 0,
-            assume_fps: float | None = None) -> BallResult:
+            assume_fps: float | None = None,
+            capture_fps: float | None = None) -> BallResult:
     """Kernphysik: Kugel finden, Parabel fitten, selbstkalibrieren.
 
     `assume_fps` ersetzt die echten Containerzeitstempel durch ein gleichmaessiges
@@ -111,7 +112,10 @@ def analyze(path: str | Path, *, seed: int = 0,
     sondern die Negativprobe zu R1: sie muss sichtbar danebenliegen, sonst ist
     nicht belegt, dass die Zeitstempel überhaupt tragen.
     """
-    info = probe(path)
+    # `capture_fps` **staucht** die echten PTS (Slo-Mo, verlangsamt exportiert);
+    # `assume_fps` **ersetzt** sie durch ein Raster. Das eine ist ein
+    # Betriebsmodus, das andere die Negativprobe zu R1 - nicht verwechseln.
+    info = probe(path, capture_fps=capture_fps)
     if assume_fps is not None:
         info = dataclasses.replace(
             info, t=np.arange(info.n_frames, dtype=np.float64) / assume_fps)

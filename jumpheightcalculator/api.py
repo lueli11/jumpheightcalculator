@@ -18,13 +18,13 @@ from pathlib import Path
 
 import numpy as np
 from arq.connections import RedisSettings, create_pool
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from . import PIPELINE_VERSION, db, pipeline
-from .ingest import IngestError, probe
+from .ingest import MAX_FPS, MIN_FPS, IngestError, probe
 
 DATA_DIR = Path(os.environ.get("JUMPHEIGHTCALCULATOR_DATA", "data"))
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
@@ -91,6 +91,7 @@ class VideoOut(BaseModel):
     n_frames: int
     duration: float
     fps_measured: float
+    capture_fps: float | None = None    # vom Nutzer angegeben, None = aus dem Container
     warning: str | None = None
 
 
@@ -106,7 +107,9 @@ class CorrectIn(BaseModel):
 
 
 @app.post("/api/videos", response_model=VideoOut)
-def upload_video(file: UploadFile = File(...), con=Depends(get_db)):
+def upload_video(file: UploadFile = File(...),
+                 capture_fps: float | None = Form(default=None),
+                 con=Depends(get_db)):
     # Bewusst **kein** `async def`: die Funktion schreibt eine Datei und ruft
     # ffprobe, beides blockierend. In einer Coroutine liefe das im Event-Loop und
     # legte die ganze API still - auch das Statuspolling anderer Nutzer. Als
@@ -117,25 +120,38 @@ def upload_video(file: UploadFile = File(...), con=Depends(get_db)):
     with dest.open("wb") as f:
         shutil.copyfileobj(file.file, f)
 
+    # Die Aufnahmerate gehoert in **dieselbe** Anfrage. `probe` laeuft hier, und
+    # bei einer unplausiblen Zeitbasis fliegt die Datei gleich wieder von der
+    # Platte - ein spaeter nachgereichter Wert kaeme zu spaet.
+    if capture_fps is not None and not (MIN_FPS <= capture_fps <= MAX_FPS):
+        dest.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=422,
+            detail=(f"Aufnahmerate {capture_fps:g} fps liegt ausserhalb "
+                    f"{MIN_FPS:.0f}-{MAX_FPS:.0f} fps. Die Höhe haengt quadratisch "
+                    f"daran - ein Tippfehler um Faktor 10 gibt Faktor 100."))
     try:
-        info = probe(dest)
+        info = probe(dest, capture_fps=capture_fps)
     except IngestError as e:
         dest.unlink(missing_ok=True)
         raise HTTPException(status_code=422, detail=str(e))
 
     con.execute(
         "INSERT INTO video (id, path, filename, width, height, rotation, n_frames,"
-        " duration, fps_measured, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        " duration, fps_measured, capture_fps, created_at)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
         (vid, str(dest), file.filename or dest.name, info.width, info.height,
-         info.rotation, info.n_frames, info.duration, info.measured_fps, _now()))
+         info.rotation, info.n_frames, info.duration, info.measured_fps,
+         capture_fps, _now()))
     con.commit()
 
     warning = None
-    if info.measured_fps < FPS_WARN:
+    if info.measured_fps < FPS_WARN * 0.99:
         warning = (f"Nur {info.measured_fps:.0f} fps gemessen. Für eine "
                    f"Fortschrittsmessung sind mindestens {FPS_WARN:.0f} fps nötig - "
                    f"bitte in Slo-Mo aufnehmen.")
-    return VideoOut(video_id=vid, filename=file.filename or dest.name,
+    return VideoOut(video_id=vid, capture_fps=capture_fps,
+                    filename=file.filename or dest.name,
                     width=info.width, height=info.height, rotation=info.rotation,
                     n_frames=info.n_frames, duration=info.duration,
                     fps_measured=info.measured_fps, warning=warning)
@@ -229,6 +245,10 @@ def get_track(aid: str, con=Depends(get_db)):
         "contact": td.contact.tolist(),
         "confidence": np.nan_to_num(td.confidence, nan=0.0).tolist(),
         "n0": td.n0, "n1": td.n1, "fps": td.fps,
+        # Das Vorschauvideo behaelt die Container-Zeitstempel. Ist die Achse per
+        # Aufnahmerate gestaucht, muss der Client zum Suchen t / time_scale
+        # nehmen, sonst springt er um genau diesen Faktor daneben.
+        "time_scale": td.time_scale,
         "body_scale_px": td.body_scale_px,
     }
 

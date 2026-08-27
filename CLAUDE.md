@@ -109,6 +109,23 @@ muss sichtbar danebenliegen (gemessen −30.6 %), sonst beweist der Test nicht,
 dass die Zeitstempel überhaupt tragen. Gleichverteilter Jitter allein genügt als
 Beweis **nicht** — er ist mittelwertfrei.
 
+**Die eine erlaubte Ausnahme: `capture_fps`.** Ein verlangsamt exportiertes
+Slo-Mo trägt die Abspielrate im Container; die echte Rate steht nirgends in der
+Datei. `probe(path, capture_fps=…)` staucht die PTS um
+`Container-Rate / Aufnahmerate`. Das ist **kein** Bruch von R1: gerechnet wird
+weiter mit den echten, ungleich verteilten Zeitstempeln, nur auf der richtigen
+Skala — ein konstanter Faktor lässt den Jitter unberührt (Test
+`test_capture_fps_keeps_the_jitter`). Geprüft wird das Ergebnis, nicht die
+Eingabe: `_check_timebase` läuft auf der **korrigierten** Achse.
+
+Der Wert ist eine Tatsachenbehauptung des Nutzers, wie die Körpermasse — und
+eine falsche Behauptung ist quadratisch falsch. Der Schutz wirkt **nur in eine
+Richtung**: zu niedrig angegeben fängt die Flugzeitgrenze ab, zu hoch angegeben
+liefert stillschweigend zu wenig (gemessen 10.00 statt 40.00 cm bei R² > 0.99).
+Im Sprung-Pfad schliesst `_check_scale_plausible` das über die Körpergrösse, im
+Ball-Pfad gibt es nichts. Darum steht neben jedem so gerechneten Ergebnis eine
+Warnung.
+
 ### R2 — Die Höhe kommt aus der Hüfte, nicht aus der Flugzeit
 `h = g·t²/8` setzt gleiche Schwerpunkthöhe bei Absprung und Landung voraus. Man
 springt gestreckt ab und landet gebeugt; der Fehler ist systematisch. Der
@@ -203,8 +220,14 @@ Die Reihenfolge in `measure()` ist bewusst gewählt: **Ursachen vor Symptomen.**
 8. **Kubischer Anteil der Residuen signifikant** (t über 4) —
    Objektivverzeichnung oder Bewegung zur Kamera.
 
+Davor, schon in `extract`: **gestreckte Zeitachse** (`_refuse_if_stretched`) —
+länger in der Luft als möglich, dabei eine saubere Parabel, und daraus eine
+unmögliche Körpergrösse. Alle drei Bedingungen zusammen, sonst schlägt das
+Weggehen nach der Landung an (auf der Referenz 2.58 s, aber R² 0.956).
+
 Dazu Warnungen ohne Verweigerung: unter 120 fps, Kamerawackeln (Restversatz über
-0.5 px), Person unter 140 px gross im Bild.
+0.5 px), Person unter 140 px gross im Bild, ungleichmässige Beinlängenänderung im
+Flug, und eine per `capture_fps` erklärte Zeitachse.
 
 **Eine Verweigerung ist keine Sackgasse.** Track und Vorschauvideo werden auch im
 Fehlerfall in der Datenbank vermerkt; der Review-Screen zeigt dann Video,
@@ -297,6 +320,16 @@ liegt im Mittel 1.81 px auf der Hüfte (bei 960 px Bildhöhe).
 - **iOS zeigt ein `<video>` erst nach einmaligem Abspielen.** `currentTime` allein
   malt kein Bild, die Fläche bleibt schwarz. Nach dem Laden kurz anspielen und
   pausieren — erlaubt, weil stumm und `playsInline`.
+
+- **Das Vorschauvideo behält die Container-Zeitstempel** (`-fps_mode passthrough`),
+  `TrackData.t` dagegen ist bei gesetztem `capture_fps` gestaucht. Der
+  Review-Screen muss deshalb mit `t / time_scale` suchen, sonst springt jeder
+  Frame um genau diesen Faktor daneben — die Zahlen stimmen, das Bild darunter
+  ist das falsche. Der leiseste Fehler der ganzen Kette.
+- **`CREATE TABLE IF NOT EXISTS` zieht keine neuen Spalten nach.** Die Datenbank
+  liegt im Volume und überlebt jedes Deploy; ohne `db._migrate` stirbt nicht der
+  Start, sondern der erste Upload danach. Neue Spalten gehören in SCHEMA **und**
+  in die Migrationsliste.
 
 ### Verworfene Ansätze (nicht nochmal probieren)
 - **Den Messstreifen an den Fuss im Absprungmoment legen** statt an die

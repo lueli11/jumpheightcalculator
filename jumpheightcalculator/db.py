@@ -18,6 +18,10 @@ CREATE TABLE IF NOT EXISTS video (
     filename    TEXT NOT NULL,
     width       INTEGER, height INTEGER, rotation INTEGER,
     n_frames    INTEGER, duration REAL, fps_measured REAL,
+    -- Vom Nutzer angegebene Aufnahmerate, NULL = nicht angegeben. Gehoert an das
+    -- Video, nicht an den Lauf: die Zeitachse ist eine Eigenschaft der Datei, und
+    -- zwei Analysen desselben Videos duerfen sich darin nicht widersprechen.
+    capture_fps REAL,
     created_at  TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS analysis (
@@ -57,7 +61,24 @@ def connect(path: str | Path) -> sqlite3.Connection:
     con.execute("PRAGMA journal_mode=WAL")
     con.execute("PRAGMA foreign_keys=ON")
     con.executescript(SCHEMA)
+    _migrate(con)
     return con
+
+
+def _migrate(con: sqlite3.Connection) -> None:
+    """Spalten nachziehen, die es beim ersten Anlegen der Datei noch nicht gab.
+
+    `CREATE TABLE IF NOT EXISTS` greift bei einer bestehenden Datenbank nicht -
+    die Tabelle ist ja da, die neue Spalte fehlt trotzdem. Ohne das hier stirbt
+    nicht der Start, sondern der erste Upload nach dem Deploy: "table video has
+    no column named capture_fps". Die Datenbank liegt im Volume und ueberlebt
+    jedes Deploy, der Fall ist also der Normalfall.
+    """
+    for tabelle, spalte, typ in (("video", "capture_fps", "REAL"),):
+        da = {r["name"] for r in con.execute(f"PRAGMA table_info({tabelle})")}
+        if spalte not in da:
+            con.execute(f"ALTER TABLE {tabelle} ADD COLUMN {spalte} {typ}")
+    con.commit()
 
 
 def row_to_analysis(r: sqlite3.Row) -> dict:

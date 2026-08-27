@@ -53,7 +53,8 @@ def run_analysis(analysis_id: str, *, data_dir: Path | None = None) -> str:
     con = db.connect(root / "jumpheightcalculator.sqlite")
     try:
         row = con.execute(
-            "SELECT a.*, v.path AS video_path FROM analysis a "
+            "SELECT a.*, v.path AS video_path, v.capture_fps AS capture_fps "
+            "FROM analysis a "
             "JOIN video v ON v.id = a.video_id WHERE a.id = ?", (analysis_id,)
         ).fetchone()
         if row is None:
@@ -76,7 +77,8 @@ def run_analysis(analysis_id: str, *, data_dir: Path | None = None) -> str:
         proxy_path = root / "proxies" / f"{analysis_id}.mp4"
         proxy_path.parent.mkdir(parents=True, exist_ok=True)
         try:
-            td = pipeline.extract(row["video_path"])
+            td = pipeline.extract(row["video_path"],
+                                  capture_fps=row["capture_fps"])
             td.save(track_path)
             _make_proxy(row["video_path"], proxy_path, td.width, td.height)
             res = pipeline.measure(td, jump_type=row["jump_type"],

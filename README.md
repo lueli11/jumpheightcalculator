@@ -75,6 +75,30 @@ mehr für die ganze Flugbahn. Genau das prüft die App an Ober- und
 Unterschenkel - Knochen wachsen nicht. Ab 12 % Änderung gibt es keinen Wert,
 sondern den Grund. An einem abgelehnten Video waren es 33 %.
 
+## Slo-Mo, das schon verlangsamt exportiert ist
+
+Die Fotos-App kann eine Zeitlupe **verlangsamt** exportieren. Im Video steht dann
+die Abspielrate, nicht die Aufnahmerate: 30 fps, obwohl mit 120 gefilmt wurde.
+Die Zeitachse ist damit vierfach gestreckt - und die Höhe hängt **quadratisch**
+daran, also sechzehnfach daneben.
+
+Die App merkt das und rechnet nicht: der Sprung dauert dann länger, als
+physikalisch möglich ist, und der Massstab aus der Selbstkalibrierung ergäbe
+eine Person von 24 m. Zwei Auswege:
+
+1. **Neu exportieren.** In Fotos die Zeitlupen-Marker ganz aufziehen, dann liegen
+   die echten 120 oder 240 fps in der Datei und alles rechnet von selbst.
+2. **Aufnahmerate angeben.** Beim Hochladen ins Feld *fps der Aufnahme*, oder auf
+   der Kommandozeile:
+
+        ... analyze VIDEO.MOV --capture-fps 120
+
+Die Angabe staucht die Zeitstempel um `Container-Rate / Aufnahmerate`. Gerechnet
+wird weiter mit den echten, ungleich verteilten Zeitstempeln (R1) - nur auf der
+richtigen Skala. **Eine falsche Angabe ist quadratisch falsch**, darum steht sie
+als Warnung neben dem Ergebnis. Grob falsche Werte fangen die Plausibilitäts-
+grenzen ab, ein Ergebnis mit unmöglicher Körpergrösse wird abgelehnt.
+
 ## Das Gewicht
 
 Das Gewicht ist **optional**. Es wird für genau zwei Grössen gebraucht:

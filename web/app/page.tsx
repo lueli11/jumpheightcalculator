@@ -9,6 +9,7 @@ export default function Upload() {
   const [err, setErr] = useState<string | null>(null);
   const [warn, setWarn] = useState<string | null>(null);
   const [mass, setMass] = useState("");
+  const [fps, setFps] = useState("");
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -18,6 +19,9 @@ export default function Upload() {
     try {
       const fd = new FormData();
       fd.append("file", input.files[0]);
+      // Nur mitschicken, wenn wirklich etwas drinsteht. Ein leeres Feld heisst
+      // "nicht angegeben", nicht "0" - genau wie beim Gewicht.
+      if (fps) fd.append("capture_fps", fps);
       const up = await fetch(apiBase() + "/api/videos", { method: "POST", body: fd });
       if (!up.ok) throw new Error((await up.json()).detail ?? "Upload fehlgeschlagen");
       const video = await up.json();
@@ -49,6 +53,10 @@ export default function Upload() {
           <input type="number" placeholder="Gewicht kg" value={mass} min={20} max={250}
                  onChange={(e) => setMass(e.target.value)} style={{ width: 120 }}
                  title="Optional - nur für Impuls und mittlere Kraft" />
+          <input type="number" placeholder="fps der Aufnahme" value={fps}
+                 min={20} max={1000} data-testid="capture-fps"
+                 onChange={(e) => setFps(e.target.value)} style={{ width: 150 }}
+                 title="Nur nötig, wenn das Slo-Mo bereits verlangsamt exportiert wurde" />
           <button type="submit" disabled={busy} data-testid="submit">
             {busy ? "lädt hoch…" : "Analysieren"}
           </button>
@@ -69,6 +77,15 @@ export default function Upload() {
           Kraftmessplatte - aus Video ist nur der Mittelwert über die Abdruckphase
           seriös.
         </p>
+      </div>
+
+      <div className="panel" style={{ fontSize: 14.5 }}>
+        <b>Die Bildrate brauchst du fast nie.</b> Nur wenn dein Slo-Mo schon
+        <i> verlangsamt</i> exportiert wurde: dann steht im Video die
+        Abspielrate, nicht die Aufnahmerate, und die Zeitachse ist gestreckt.
+        Die Höhe hängt <b>quadratisch</b> daran - vierfach gestreckt heisst
+        sechzehnfach falsch. Die App merkt es und sagt es dir; hier trägst du
+        dann nach, mit wie vielen fps du gefilmt hast (meist 120 oder 240).
       </div>
 
       {warn && <div className="panel warn" data-testid="warning">{warn}</div>}

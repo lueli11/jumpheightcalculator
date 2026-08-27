@@ -15,6 +15,7 @@ const HIP_L = 23, HIP_R = 24;
 type Track = {
   t: number[]; xy: number[][][]; width: number; height: number;
   contact: number[]; n0: number; n1: number; fps: number;
+  time_scale?: number;
 };
 type Result = Record<string, number | string | boolean | string[] | null>;
 type Queue = { queue_ahead?: number; eta_seconds?: number; typical_seconds?: number };
@@ -71,9 +72,19 @@ export default function Review() {
 
   // Frame-Stepper über die PTS-Tabelle, nicht über eine angenommene Framerate:
   // die Zeitstempel sind variabel, currentTime = n/fps wäre schlicht falsch (R1).
+  //
+  // Gesucht wird auf der **Container**-Achse. Hat der Nutzer eine Aufnahmerate
+  // angegeben, ist `track.t` gestaucht, das Vorschauvideo aber nicht - es wird
+  // mit `-fps_mode passthrough` erzeugt und behält die Zeitstempel der Datei.
+  // Ohne die Rückrechnung springt jeder Frame um genau diesen Faktor daneben:
+  // die Zahlen stimmten, das Bild darunter wäre das falsche.
+  const videoTime = useCallback(
+    (i: number) => (track ? (track.t[i] ?? 0) / (track.time_scale || 1) : 0),
+    [track]);
+
   useEffect(() => {
-    if (track && video.current) video.current.currentTime = track.t[frame] ?? 0;
-  }, [frame, track]);
+    if (track && video.current) video.current.currentTime = videoTime(frame);
+  }, [frame, track, videoTime]);
 
   // Safari auf dem iPhone zeigt ein Video erst an, wenn es einmal gelaufen ist -
   // `currentTime` allein malt nichts, die Fläche bleibt schwarz. Einmal
@@ -90,8 +101,8 @@ export default function Review() {
       /* Autoplay abgelehnt - dann hilft der erste Fingertipp, siehe onClick */
     }
     setPrimed(true);
-    if (track) v.currentTime = track.t[frame] ?? 0;
-  }, [primed, track, frame]);
+    if (track) v.currentTime = videoTime(frame);
+  }, [primed, track, frame, videoTime]);
 
   const draw = useCallback(() => {
     if (!track) return;

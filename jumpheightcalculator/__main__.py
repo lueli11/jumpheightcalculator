@@ -33,6 +33,8 @@ def main(argv: list[str] | None = None) -> int:
     vb.add_argument("video")
     vb.add_argument("--px-per-m", type=float, default=None,
                     help="bekannter Massstab; nur zum Gegenrechnen der Krümmung")
+    vb.add_argument("--capture-fps", type=float, default=None,
+                    help="echte Aufnahmerate, siehe analyze")
     vb.add_argument("--json", action="store_true")
 
     an = sub.add_parser("analyze", help="Sprung aus einem Video messen")
@@ -44,10 +46,15 @@ def main(argv: list[str] | None = None) -> int:
     an.add_argument("--scale", type=float, default=None,
                     help="Arbeitsauflösung als Anteil der Originalgrösse; "
                          "ohne Angabe automatisch auf 540 px Breite")
+    an.add_argument("--capture-fps", type=float, default=None,
+                    help="echte Aufnahmerate, falls das Video bereits verlangsamt "
+                         "exportiert wurde (Container meldet dann die Abspielrate)")
     an.add_argument("--json", action="store_true")
 
     i = sub.add_parser("info", help="Zeitstempel und Geometrie eines Videos")
     i.add_argument("video")
+    i.add_argument("--capture-fps", type=float, default=None,
+                   help="echte Aufnahmerate, siehe analyze")
 
     a = ap.parse_args(argv)
     try:
@@ -59,7 +66,8 @@ def main(argv: list[str] | None = None) -> int:
 
         if a.cmd == "analyze":
             r = pipeline.analyze(a.video, jump_type=a.jump_type, mass_kg=a.mass_kg,
-                                 model=a.model, scale=a.scale)
+                                 model=a.model, scale=a.scale,
+                                 capture_fps=a.capture_fps)
             if a.json:
                 print(json.dumps(r.to_dict(), indent=2))
                 return 0
@@ -93,18 +101,21 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if a.cmd == "info":
-            info = probe(a.video)
+            info = probe(a.video, capture_fps=a.capture_fps)
             print(f"{info.path.name}: {info.width}x{info.height}, Rotation {info.rotation} Grad")
             print(f"  {info.n_frames} Frames, {info.duration:.3f} s")
             print(f"  gemessene fps {info.measured_fps:.2f}  (Container meldet "
                   f"{info.nominal_fps:.2f})")
-            if info.measured_fps < 120:
+            if info.time_scale != 1.0:
+                print(f"  Zeitachse um Faktor {1/info.time_scale:.2f} gestaucht "
+                      f"(Aufnahmerate von Hand angegeben)")
+            if info.measured_fps < 120 * 0.99:
                 print("  WARNUNG: unter 120 fps. Für eine Fortschrittsmessung zu grob - "
                       "bitte in Slo-Mo aufnehmen.")
             return 0
 
         if a.cmd == "validate" and a.kind == "ball":
-            r = ball.analyze(a.video)
+            r = ball.analyze(a.video, capture_fps=a.capture_fps)
             d = r.to_dict()
             if a.px_per_m:
                 d["curvature_ms2"] = r.a_px / a.px_per_m

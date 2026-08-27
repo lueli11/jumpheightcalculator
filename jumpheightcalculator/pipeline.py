@@ -130,6 +130,10 @@ class TrackData:
     body_scale_px: float
     scale_drift: float       # Groessenaenderung starrer Segmente im Flug
     scale_spread: float = 0.0  # Spanne derselben Aenderung ueber die vier Segmente
+    # Faktor, mit dem die Container-PTS gestaucht wurden (angegebene Aufnahmerate).
+    # 1.0 heisst unveraendert. Das Vorschauvideo behaelt die **Container**-Achse -
+    # wer im Review-Screen einen Frame anspringt, muss t / time_scale nehmen.
+    time_scale: float = 1.0
 
     def save(self, path: str | Path) -> None:
         np.savez_compressed(path, **{k: np.asarray(v) for k, v in asdict(self).items()})
@@ -151,6 +155,7 @@ class TrackData:
             body_scale_px=float(d["body_scale_px"]),
             scale_drift=float(d["scale_drift"]) if "scale_drift" in d else 0.0,
             scale_spread=float(d["scale_spread"]) if "scale_spread" in d else 0.0,
+            time_scale=float(d["time_scale"]) if "time_scale" in d else 1.0,
         )
 
 
@@ -205,7 +210,8 @@ class Result:
         return asdict(self)
 
 
-def _coarse_air(track: posemod.PoseTrack, t: np.ndarray) -> tuple[int, int]:
+def _coarse_air(track: posemod.PoseTrack, t: np.ndarray,
+                time_scale: float = 1.0) -> tuple[int, int]:
     """Grobes Flugfenster aus der Knöchelhöhe.
 
     Nur zur Platzierung des ROI und als Referenz für den leeren Boden -
@@ -255,7 +261,7 @@ def _coarse_air(track: posemod.PoseTrack, t: np.ndarray) -> tuple[int, int]:
     # 0.996), und daran wird es unterschieden.
     if zu_lang is not None:
         _refuse_if_stretched(t, track.pt(posemod.HIP)[:, 1], track.xy,
-                             zu_lang[0], zu_lang[1], zu_lang[2])
+                             zu_lang[0], zu_lang[1], zu_lang[2], time_scale)
     if best is None:
         raise Refusal(
             "Kein Sprung gefunden: die Knöchel heben nie für 0.15-1.10 s deutlich "
@@ -264,8 +270,26 @@ def _coarse_air(track: posemod.PoseTrack, t: np.ndarray) -> tuple[int, int]:
     return best
 
 
+def _timebase_advice(time_scale: float, fps: float, k: float) -> str:
+    """Der Rat haengt davon ab, ob schon eine Aufnahmerate angegeben wurde.
+
+    Ohne Angabe ist der naechste Schritt der Export mit Originalgeschwindigkeit.
+    Mit Angabe waere derselbe Rat zirkulaer - dann ist die **Angabe** falsch, und
+    zwar um genau diesen Faktor.
+    """
+    if time_scale == 1.0:
+        return (f"Das Video ist also mit etwa {fps * k:.0f} statt {fps:.0f} fps "
+                f"aufgenommen und verlangsamt exportiert. Exportiere es mit "
+                f"Originalgeschwindigkeit, oder gib die Aufnahmerate beim "
+                f"Hochladen an.")
+    return (f"Die angegebene Aufnahmerate von {fps:.0f} fps kann nicht stimmen - "
+            f"rund {fps * k:.0f} fps waeren es. Lade das Video mit dem "
+            f"korrigierten Wert erneut hoch.")
+
+
 def _refuse_if_stretched(t: np.ndarray, hip_y: np.ndarray, xy: np.ndarray,
-                         n0: int, n1: int, dur: float) -> None:
+                         n0: int, n1: int, dur: float,
+                         time_scale: float = 1.0) -> None:
     """Zu lang **und** saubere Parabel **und** unmoegliche Groesse -> Zeitachse.
 
     Alle drei Bedingungen braucht es. Ein zu langes Luftfenster allein ist der
@@ -292,9 +316,8 @@ def _refuse_if_stretched(t: np.ndarray, hip_y: np.ndarray, xy: np.ndarray,
         f"saubere Wurfparabel - beides zusammen geht nicht (möglich sind "
         f"{MAX_FLIGHT_S:.2f} s). Der Massstab daraus ergäbe eine Person von "
         f"{laenge:.0f} m. Nicht die Aufnahme ist schuld, sondern die Zeitachse: "
-        f"sie ist rund {k:.0f}-fach gestreckt, das Video also mit etwa "
-        f"{fps * k:.0f} statt {fps:.0f} fps aufgenommen und verlangsamt "
-        f"exportiert. Exportiere es mit Originalgeschwindigkeit."
+        f"sie ist rund {k:.0f}-fach gestreckt. "
+        + _timebase_advice(time_scale, fps, k)
     )
 
 
@@ -327,13 +350,12 @@ def _check_scale_plausible(td: "TrackData", s: float) -> None:
     if BODY_LEN_BOUNDS_M[0] <= laenge <= BODY_LEN_BOUNDS_M[1]:
         return
     k = (laenge / 1.35) ** 0.5
+    richtung = "gestreckt" if k > 1 else "gestaucht"
     raise Refusal(
         f"Der Massstab aus der Physik ergibt eine Person von {laenge:.1f} m "
         f"(Schulter bis Knöchel) - das kann nicht sein. Nicht die Aufnahme ist "
         f"schuld, sondern die Zeitachse: sie ist um rund das "
-        f"{k:.1f}-fache {'gestreckt' if k > 1 else 'gestaucht'}, das Video "
-        f"also mit rund {td.fps * k:.0f} statt {td.fps:.0f} fps aufgenommen und "
-        f"verlangsamt exportiert. Exportiere es mit Originalgeschwindigkeit."
+        f"{k:.1f}-fache {richtung}. " + _timebase_advice(td.time_scale, td.fps, k)
     )
 
 
@@ -427,12 +449,13 @@ def _scale_drift(track: posemod.PoseTrack, n0: int, n1: int) -> tuple[float, flo
 
 
 def extract(path: str | Path, *, scale: float | None = None,
-            model: str = "full") -> TrackData:
+            model: str = "full", capture_fps: float | None = None) -> TrackData:
     """Der teure Teil: Decode, Pose, Pixelzweig, Fusion. Rund 2-3 Minuten auf 4K.
 
     `scale` wird aus der Bildbreite bestimmt, wenn nichts angegeben ist.
+    `capture_fps` korrigiert eine gestreckte Zeitachse - siehe `ingest.probe`.
     """
-    info = probe(path)
+    info = probe(path, capture_fps=capture_fps)
     if scale is None:
         scale = pose_scale(info.width)
     track = posemod.track(info, model=model, scale=scale)
@@ -442,7 +465,7 @@ def extract(path: str | Path, *, scale: float | None = None,
             f"Bitte den ganzen Körper im Bild halten und enge Kleidung tragen."
         )
 
-    c_n0, c_n1 = _coarse_air(track, info.t)
+    c_n0, c_n1 = _coarse_air(track, info.t, info.time_scale)
 
     # Zweiter Streifen an der Landestelle: wer zum Korb springt, landet nicht
     # dort, wo er abgesprungen ist.
@@ -495,7 +518,7 @@ def extract(path: str | Path, *, scale: float | None = None,
         stance_start=stance.start, stance_end=stance.stop,
         fps=info.measured_fps, shift_residual=sig.shift_residual,
         body_scale_px=track.body_scale(), scale_drift=drift,
-        scale_spread=spread,
+        scale_spread=spread, time_scale=info.time_scale,
     )
 
 
@@ -559,7 +582,7 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
         # Wer die Frames von Hand setzt, kommt hier an, ohne dass _coarse_air je
         # gelaufen waere - dieselbe Pruefung also noch einmal, sonst bekaeme er
         # bei einem gestreckten Video den Rat, die Marker zu verschieben.
-        _refuse_if_stretched(t, td.hip_y, td.xy, n0, n1, t_f)
+        _refuse_if_stretched(t, td.hip_y, td.xy, n0, n1, t_f, td.time_scale)
         raise Refusal(
             f"Flugzeit {t_f*1000:.0f} ms liegt ausserhalb des Plausiblen "
             f"({MIN_FLIGHT_S*1000:.0f}-{MAX_FLIGHT_S*1000:.0f} ms) - das wären "
@@ -646,6 +669,11 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
                     f"{td.scale_spread*100:.0f} Prozentpunkte). Das spricht für eine "
                     f"schräge Kameraachse oder unsichere Keypoints, nicht für eine "
                     f"Bewegung zur Kamera. Filme genau von der Seite.")
+    if td.time_scale != 1.0:
+        warn.append(f"Die Zeitachse stammt aus der von dir angegebenen Aufnahmerate "
+                    f"({td.fps:.0f} fps), nicht aus dem Video "
+                    f"({td.fps * td.time_scale:.0f} fps im Container). Stimmt die "
+                    f"Angabe nicht, ist die Höhe quadratisch daneben.")
     if corrected:
         warn.append("Ereignisframes wurden manuell korrigiert.")
 
@@ -712,9 +740,10 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
 
 def analyze(path: str | Path, *, jump_type: str = "cmj", mass_kg: float | None = None,
             seed: int = 0, scale: float | None = None, model: str = "full",
-            track_out: str | Path | None = None) -> Result:
+            track_out: str | Path | None = None,
+            capture_fps: float | None = None) -> Result:
     """Bequemlichkeit für die CLI: extrahieren und messen in einem Zug."""
-    td = extract(path, scale=scale, model=model)
+    td = extract(path, scale=scale, model=model, capture_fps=capture_fps)
     if track_out is not None:
         td.save(track_out)
     return measure(td, jump_type=jump_type, mass_kg=mass_kg, seed=seed)

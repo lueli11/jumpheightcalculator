@@ -48,6 +48,9 @@ class VideoInfo:
     height: int
     rotation: int          # Grad, aus der Display-Matrix
     nominal_fps: float     # gemeldete Framerate - nur für Anzeige und Warnungen
+    # Faktor, mit dem die Container-PTS gestaucht wurden, weil der Nutzer die
+    # Aufnahmerate angegeben hat. 1.0 heisst: unveraendert aus dem Container.
+    time_scale: float = 1.0
 
     @property
     def n_frames(self) -> int:
@@ -63,8 +66,26 @@ class VideoInfo:
         return float(self.t[-1] - self.t[0]) if self.t.size > 1 else 0.0
 
 
-def probe(path: str | Path) -> VideoInfo:
-    """Liest Zeitstempel und Geometrie. Wirft bei unplausibler Zeitbasis (B2)."""
+def probe(path: str | Path, *, capture_fps: float | None = None) -> VideoInfo:
+    """Liest Zeitstempel und Geometrie. Wirft bei unplausibler Zeitbasis (B2).
+
+    `capture_fps` ist die **Aufnahme**rate, falls der Nutzer sie kennt. Ein
+    bereits verlangsamt exportiertes Slo-Mo traegt im Container die Abspielrate:
+    ein mit 120 fps aufgenommenes Video meldet dann 30, und die Zeitachse ist
+    vierfach gestreckt. Die Hoehe faellt dadurch 16-fach daneben, weil sie
+    quadratisch von der Zeitskalierung abhaengt.
+
+    Die Angabe staucht die Zeitstempel um `container_fps / capture_fps`. Sie
+    ersetzt R1 **nicht**: gerechnet wird weiter mit den echten, ungleich
+    verteilten PTS, nur auf der richtigen Skala. Ein konstanter Faktor laesst die
+    Ungleichmaessigkeit unberuehrt.
+
+    Geprueft wird das Ergebnis, nicht die Eingabe: `_check_timebase` laeuft auf
+    der **korrigierten** Achse. Wer 5 fps angibt, kommt damit nicht durch. Eine
+    falsche, aber plausible Angabe faengt spaeter die Groessenprobe in
+    `pipeline._check_scale_plausible` ab - der Massstab aus R5 ergaebe dann eine
+    unmoegliche Koerpergroesse.
+    """
     path = Path(path)
     if not path.exists():
         raise IngestError(f"Datei nicht gefunden: {path}")
@@ -105,7 +126,16 @@ def probe(path: str | Path) -> VideoInfo:
         # B-Frames ohne DTS-Korrektur, und das verschiebt die Zeitachse.
         raise IngestError("Zeitstempel sind nicht streng monoton steigend (R1).")
 
-    info = VideoInfo(path, t, w, h, rotation, nominal)
+    scale = 1.0
+    if capture_fps is not None:
+        if not np.isfinite(capture_fps) or capture_fps <= 0:
+            raise IngestError(
+                f"Aufnahmerate {capture_fps} ist keine brauchbare Bildrate.")
+        container = float(1.0 / np.median(np.diff(t)))
+        scale = container / float(capture_fps)
+        t = t * scale
+
+    info = VideoInfo(path, t, w, h, rotation, nominal, time_scale=scale)
     _check_timebase(info)
     return info
 
