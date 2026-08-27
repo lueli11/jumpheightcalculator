@@ -133,7 +133,7 @@ def test_cubic_test_is_deflated_by_autocorrelation():
 
 
 # --- Perspektive: Massstabsaenderung waehrend des Flugs ---------------------
-def _track_with_drift(drift: float):
+def _track_with_drift(drift: float, spread: float = 0.0):
     """Kuenstlicher Track; `drift` ist die Groessenaenderung starrer Segmente."""
     from jumpheightcalculator import pipeline as pl
     n, n0, n1, fps = 220, 40, 140, 120.0
@@ -149,7 +149,7 @@ def _track_with_drift(drift: float):
         confidence=np.full(n, 0.9), n0=n0, n1=n1,
         stance_start=max(0, n0 - 30), stance_end=n0 - 30, fps=fps,
         shift_residual=0.1, body_scale_px=400.0, scale_drift=drift,
-        coarse_n0=n0, coarse_n1=n1)
+        scale_spread=spread, coarse_n0=n0, coarse_n1=n1)
 
 
 def test_perspective_drift_is_refused():
@@ -169,6 +169,22 @@ def test_small_drift_is_accepted():
     from jumpheightcalculator.pipeline import measure
     r = measure(_track_with_drift(0.03))
     assert r.h_e2 == pytest.approx(0.45, abs=0.02)
+
+
+def test_uneven_drift_only_warns():
+    """Gegenprobe zur Verweigerung: eine Entfernungsaenderung skaliert **alle**
+    starren Segmente gleich. Streuen die vier Werte, ist die Ursache Haltung oder
+    Pose-Rauschen, und eine Verweigerung waere ein Fehlalarm.
+
+    Gemessen an IMG_0366: +13 % Aenderung, aber 15 Punkte Spanne ueber die vier
+    Segmente ([7.1, 7.6, 19.1, 22.0]) - waehrend die Person vor dem Sprung und
+    nach der Landung nachweislich gleich weit weg steht (Schulter-Knoechel 150.1
+    gegen 143.5 px). Die saubere Referenz kommt auf 5 Punkte.
+    """
+    from jumpheightcalculator.pipeline import measure
+    r = measure(_track_with_drift(0.13, spread=0.15))
+    assert r.h_e2 == pytest.approx(0.45, abs=0.02)
+    assert any("uneinheitlich" in w for w in r.warnings)
 
 
 def test_contact_and_body_must_agree():

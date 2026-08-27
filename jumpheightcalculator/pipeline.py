@@ -71,6 +71,11 @@ def pose_scale(width: int) -> float:
 # Tiefenbewegung. Damit aendert sich der Massstab mitten im Sprung, die Kruemmung
 # der Parabel wird bedeutungslos und die Selbstkalibrierung (R5) ungueltig.
 MAX_SCALE_DRIFT = 0.12
+# Eine echte Entfernungsaenderung skaliert alle starren Segmente gleich. Streuen
+# die vier Werte weiter auseinander, ist die Ursache Haltung oder Pose-Rauschen,
+# und eine Verweigerung waere ein Fehlalarm. Gemessen: saubere Referenz 5 Punkte,
+# IMG_0366 (schraege Kamera, Hocke) 15 Punkte.
+MAX_SCALE_SPREAD = 0.10
 
 # Kontaktsignal (Fuss) und Koerperbewegung (Knoechelhub) schaetzen das Flugfenster
 # unabhaengig voneinander. Nach R3 ist die Knoechelversion systematisch zu lang -
@@ -119,7 +124,8 @@ class TrackData:
     fps: float
     shift_residual: float
     body_scale_px: float
-    scale_drift: float       # Groessenaenderung starrer Segmente Stand -> Flug
+    scale_drift: float       # Groessenaenderung starrer Segmente im Flug
+    scale_spread: float = 0.0  # Spanne derselben Aenderung ueber die vier Segmente
 
     def save(self, path: str | Path) -> None:
         np.savez_compressed(path, **{k: np.asarray(v) for k, v in asdict(self).items()})
@@ -140,6 +146,7 @@ class TrackData:
             fps=float(d["fps"]), shift_residual=float(d["shift_residual"]),
             body_scale_px=float(d["body_scale_px"]),
             scale_drift=float(d["scale_drift"]) if "scale_drift" in d else 0.0,
+            scale_spread=float(d["scale_spread"]) if "scale_spread" in d else 0.0,
         )
 
 
@@ -279,29 +286,48 @@ def _stance_window(track: posemod.PoseTrack, until: int) -> slice:
     return slice(max(best[0], best[1] + 1 - max_len), best[1] + 1)
 
 
-def _scale_drift(track: posemod.PoseTrack, stance: slice, n0: int, n1: int) -> float:
-    """Groessenaenderung **starrer** Segmente zwischen Stand und Flug.
+def _scale_drift(track: posemod.PoseTrack, n0: int, n1: int) -> tuple[float, float]:
+    """Groessenaenderung starrer Segmente **innerhalb des Flugs**.
 
-    Genommen werden Oberschenkel und Unterschenkel beider Seiten: das sind
-    Knochen, ihre Bildlaenge kann sich nur aendern, wenn sich der Abstand zur
-    Kamera aendert (oder das Bein aus der Bildebene dreht). Die Koerperlaenge
-    Schulter-Knoechel taugt dafuer nicht - die aendert sich schon dadurch, dass
-    man die Beine anzieht.
+    Gemessen wird, was die Verweigerung auch behauptet: ob die Person waehrend
+    des Flugs groesser wird. Vorher stand hier Stand gegen Flug - das misst zu
+    einem grossen Teil die **Haltung**, nicht die Entfernung. In der Hocke zeigen
+    gebeugte Glieder bei nicht exakt seitlicher Kamera aus der Bildebene heraus
+    und sind dadurch verkuerzt; auf IMG_0366 kam so +19 % heraus, obwohl die
+    Person vor dem Sprung (Schulter-Knoechel 150.1 px) und nach der Landung
+    (143.5 px) nachweislich gleich weit weg steht.
+
+    Zurueckgegeben wird das Paar (Aenderung, Streuung):
+
+    * **Aenderung** ist der Median ueber die vier Segmente von erstem gegen
+      letztes Flugdrittel. Median gegen Median, damit weder der Hocker in der
+      Mitte noch ein einzelner kaputter Frame durchschlaegt - auf IMG_0366 sind
+      Frame 101 und 109 Pose-Muell (Oberschenkel 22 px statt 65).
+    * **Streuung** ist die Spanne derselben vier Werte. Eine echte
+      Entfernungsaenderung skaliert **alle** Segmente gleich; streuen sie, ist es
+      Haltung oder Pose-Rauschen. Gemessen: IMG_0366 [7.1, 7.6, 19.1, 22.0] -
+      15 Punkte auseinander, waehrend die saubere Referenz IMG_5418 auf 5 Punkte
+      kommt. Das deckt sich mit der dokumentierten Beobachtung, dass ein sauberes
+      Video um 3 % streut.
+
+    Die Koerperlaenge Schulter-Knoechel taugt hier nicht: sie aendert sich schon
+    dadurch, dass man die Beine anzieht (auf IMG_0366 Stand 150 gegen Flug 220 px,
+    +47 % rein aus Streckung).
     """
     pairs = ((23, 25), (24, 26), (25, 27), (26, 28))
     lens = np.stack([np.linalg.norm(track.xy[:, a] - track.xy[:, b], axis=1)
                      for a, b in pairs])
-    # Gemessen wird gegen die **echte** Standphase. Mit dem alten festen Fenster
-    # (0.5 s vor dem groben Absprung) lagen auf IMG_0366 Frames, in denen die
-    # Person noch halb ausserhalb des Bildes ins Bild lief: die Gliedmassen waren
-    # dort verstuemmelt, und die Pipeline meldete +34 % Massstabsaenderung, wo
-    # keine war.
+    k = (n1 - n0) // 3
+    if k < 3:
+        return 0.0, 0.0
     with np.errstate(invalid="ignore"):
-        stand = np.nanmedian(lens[:, stance])
-        air = np.nanmedian(lens[:, n0:max(n0 + 1, n1)])
-    if not (np.isfinite(stand) and np.isfinite(air)) or stand <= 0:
-        return 0.0
-    return float(air / stand - 1.0)
+        frueh = np.nanmedian(lens[:, n0:n0 + k], axis=1)
+        spaet = np.nanmedian(lens[:, n1 - k:n1], axis=1)
+    ok = np.isfinite(frueh) & np.isfinite(spaet) & (frueh > 0)
+    if ok.sum() < 2:
+        return 0.0, 0.0
+    r = spaet[ok] / frueh[ok] - 1.0
+    return float(np.median(r)), float(r.max() - r.min())
 
 
 def extract(path: str | Path, *, scale: float | None = None,
@@ -360,7 +386,7 @@ def extract(path: str | Path, *, scale: float | None = None,
 
     n = min(info.n_frames, c.size)
     conf = np.nanmean(track.vis[:n][:, list(posemod.HIP) + list(posemod.ANKLE)], axis=1)
-    drift = _scale_drift(track, stance, c_n0, c_n1)
+    drift, spread = _scale_drift(track, n0, n1)
     return TrackData(
         t=info.t[:n],
         xy=track.xy[:n],
@@ -373,6 +399,7 @@ def extract(path: str | Path, *, scale: float | None = None,
         stance_start=stance.start, stance_end=stance.stop,
         fps=info.measured_fps, shift_residual=sig.shift_residual,
         body_scale_px=track.body_scale(), scale_drift=drift,
+        scale_spread=spread,
     )
 
 
@@ -387,13 +414,15 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
     # alle folgenden Pruefungen Folgefehler - eine unplausible Flugzeit ist dann
     # das Symptom, nicht die Ursache, und "verschiebe die Ereignisframes" waere
     # ein irrefuehrender Rat: von Hand ist da nichts zu retten.
-    if abs(td.scale_drift) > MAX_SCALE_DRIFT:
+    if abs(td.scale_drift) > MAX_SCALE_DRIFT and td.scale_spread <= MAX_SCALE_SPREAD:
         raise Refusal(
             f"Die Person wird während des Flugs {td.scale_drift*100:+.0f} % grösser "
             f"im Bild - gemessen an Ober- und Unterschenkel, und Knochen wachsen "
-            f"nicht. Du springst also auf die Kamera zu oder von ihr weg. Damit "
-            f"ändert sich der Massstab mitten im Sprung und die Höhe ist nicht "
-            f"bestimmbar. Stelle die Kamera seitlich auf, 3-4 m entfernt, und "
+            f"nicht. Alle vier Segmente ändern sich dabei im Gleichschritt "
+            f"(Spanne {td.scale_spread*100:.0f} Prozentpunkte), das ist eine "
+            f"Entfernungsänderung. Du springst also auf die Kamera zu oder von ihr "
+            f"weg. Damit ändert sich der Massstab mitten im Sprung und die Höhe ist "
+            f"nicht bestimmbar. Stelle die Kamera seitlich auf, 3-4 m entfernt, und "
             f"springe senkrecht zur Blickrichtung - ohne vor- oder zurückzuspringen."
         )
 
@@ -505,6 +534,17 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
     if np.isfinite(td.shift_residual) and td.shift_residual > MAX_SHIFT_RESID_PX:
         warn.append(f"Kamera wackelt (Restversatz {td.shift_residual:.2f} px) - das "
                     f"Kontaktsignal wird dadurch unsicherer.")
+    # Ueber der Schwelle, aber die Segmente widersprechen sich: dann ist es keine
+    # Entfernungsaenderung (die skaliert alle gleich), sondern Haltung oder
+    # Pose-Rauschen. Kein Grund, die Messung zu verweigern - aber einer, es
+    # danebenzuschreiben. Die eigentliche Absicherung uebernehmen hier R2 und der
+    # Abstand E2 zu E3, die beide auf einen falschen Massstab ansprechen.
+    if abs(td.scale_drift) > MAX_SCALE_DRIFT and td.scale_spread > MAX_SCALE_SPREAD:
+        warn.append(f"Die Beinlängen ändern sich im Flug um {td.scale_drift*100:+.0f} %, "
+                    f"die vier Segmente aber uneinheitlich (Spanne "
+                    f"{td.scale_spread*100:.0f} Prozentpunkte). Das spricht für eine "
+                    f"schräge Kameraachse oder unsichere Keypoints, nicht für eine "
+                    f"Bewegung zur Kamera. Filme genau von der Seite.")
     if corrected:
         warn.append("Ereignisframes wurden manuell korrigiert.")
 
