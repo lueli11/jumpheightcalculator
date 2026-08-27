@@ -147,20 +147,34 @@ export default function Review() {
 
   async function correct(dTakeoff: number, dLanding: number) {
     if (!track || n0 === null || n1 === null) return;
+    const body = {
+      takeoff_frame: Math.max(0, n0 + dTakeoff),
+      landing_frame: Math.min(track.t.length - 1, n1 + dLanding),
+    };
+    if (body.landing_frame - body.takeoff_frame < 10) return;
+
+    // Marker sofort setzen, nicht erst nach der Antwort. Der rote Strich und die
+    // Flugzeit haengen allein an den beiden Frames - beides ist ohne Server
+    // bekannt. Nur die Hoehe braucht einen neuen Fit; die kommt nach.
+    setN0(body.takeoff_frame); setN1(body.landing_frame);
+    setFrame(dTakeoff !== 0 ? body.takeoff_frame : body.landing_frame);
     setBusy(true);
-    const body = { takeoff_frame: n0 + dTakeoff, landing_frame: n1 + dLanding };
-    const r = await fetch(`${apiBase()}/api/analyses/${id}/correct`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const payload = await r.json();
-    if (r.ok) {
-      setResult(payload.result);
-      setN0(body.takeoff_frame); setN1(body.landing_frame);
-    } else {
-      setError(payload.detail);
+    try {
+      const r = await fetch(`${apiBase()}/api/analyses/${id}/correct`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const payload = await r.json();
+      if (r.ok) {
+        setResult(payload.result); setError(null);
+      } else {
+        // Die Marker bleiben stehen, wo sie sind: sonst koennte man sich nicht
+        // schrittweise an eine gueltige Stellung herantasten.
+        setResult(null); setError(payload.detail);
+      }
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   if (error && !track) {
@@ -184,58 +198,84 @@ export default function Review() {
   const cm = (v: unknown) => (typeof v === "number" ? (v * 100).toFixed(1) : "-");
   const num = (v: unknown, d: number) => (typeof v === "number" ? v.toFixed(d) : "-");
 
+  // Flugzeit sofort aus der PTS-Tabelle: sie haengt nur an den beiden gesetzten
+  // Frames, nicht am Fit. Waehrend der Server neu rechnet, steht hier also schon
+  // der richtige Wert, statt dass die Anzeige stehenbleibt.
+  const a0 = n0 ?? track.n0;
+  const a1 = n1 ?? track.n1;
+  const liveTf = (track.t[Math.min(a1, track.t.length - 1)] ?? 0) - (track.t[a0] ?? 0);
+
   return (
     <>
       <h1>{result ? "Ergebnis" : "Keine Messung möglich"}</h1>
-      {result ? (
-        <p className="sub">
-          <span className="big mono" data-testid="height">{cm(result.h_e2)}</span>
-          <span className="unit"> cm Sprunghöhe</span>
-        </p>
-      ) : (
-        <>
-          <div className="panel err" data-testid="refusal">{error}</div>
-          <p className="sub">
-            Die Kurve unter dem Video ist das Kontaktsignal: <b>hoch heisst Fuss am
-            Boden</b>, tief heisst Flug. Die roten Striche sind der erkannte Absprung
-            und die Landung. Stimmen sie nicht mit den Flanken der Kurve überein,
-            verschiebe sie unten mit den Knöpfen.
-          </p>
-        </>
-      )}
 
-      {/* Seitenverhaeltnis aus den Trackdaten, nicht aus dem geladenen Video:
-          laedt die Videospur nicht (fehlender Codec, langsames Netz), kollabiert
-          die Buehne sonst auf die Standardgroesse und streckt das Overlay. */}
-      <div className="stage" style={{ aspectRatio: `${track.width} / ${track.height}` }}>
-        <video ref={video} src={`${apiBase()}/api/analyses/${id}/video`} preload="auto"
-               playsInline muted onLoadedMetadata={draw} data-testid="video" />
-        <canvas ref={overlay} />
-      </div>
+      <div className="review">
+        <div className="col-left">
+          {/* Seitenverhaeltnis aus den Trackdaten, nicht aus dem geladenen Video:
+              laedt die Videospur nicht (fehlender Codec, langsames Netz),
+              kollabiert die Buehne sonst und streckt das Overlay. */}
+          <div className="stage"
+               style={{ aspectRatio: `${track.width} / ${track.height}` }}>
+            <video ref={video} src={`${apiBase()}/api/analyses/${id}/video`}
+                   preload="auto" playsInline muted onLoadedMetadata={draw}
+                   data-testid="video" />
+            <canvas ref={overlay} />
+          </div>
 
-      <div className="row" style={{ marginTop: 12 }}>
-        <button onClick={() => setFrame((f) => Math.max(0, f - 1))}>&larr; Frame</button>
-        <span className="mono">Frame {frame} &middot; {num(track.t[frame], 3)} s</span>
-        <button onClick={() => setFrame((f) => Math.min(track.t.length - 1, f + 1))}>
-          Frame &rarr;
-        </button>
-        <button onClick={() => setFrame(n0 ?? track.n0)}>zum Absprung</button>
-        <button onClick={() => setFrame(n1 ?? track.n1)}>zur Landung</button>
-      </div>
+          <div className="row" style={{ marginTop: 10 }}>
+            <button onClick={() => setFrame((f) => Math.max(0, f - 1))}>&larr;</button>
+            <span className="mono" style={{ fontSize: 14 }}>
+              Frame {frame} &middot; {num(track.t[frame], 3)} s
+            </span>
+            <button onClick={() => setFrame((f) => Math.min(track.t.length - 1, f + 1))}>
+              &rarr;
+            </button>
+            <button onClick={() => setFrame(a0)}>Absprung</button>
+            <button onClick={() => setFrame(a1)}>Landung</button>
+          </div>
+        </div>
 
-      <canvas ref={signal} style={{ width: "100%", height: 120, marginTop: 14 }} />
+        <div>
+          {result ? (
+            <p className="sub" style={{ marginBottom: 12 }}>
+              <span className="big mono" data-testid="height">{cm(result.h_e2)}</span>
+              <span className="unit"> cm Sprunghöhe</span>
+              <br />
+              <span className="mono" style={{ fontSize: 15 }}>
+                {(liveTf * 1000).toFixed(0)} ms Flugzeit
+                {busy ? " · rechnet…" : ""}
+              </span>
+            </p>
+          ) : (
+            <>
+              <div className="panel err" data-testid="refusal">{error}</div>
+              <p className="sub" style={{ fontSize: 14 }}>
+                Die Kurve ist das Kontaktsignal: <b>hoch heisst Fuss am Boden</b>,
+                tief heisst Flug. Die roten Striche sind Absprung und Landung.
+                Stimmen sie nicht mit den Flanken überein, verschiebe sie unten.
+                Aktuell {(liveTf * 1000).toFixed(0)} ms Flugzeit.
+              </p>
+            </>
+          )}
 
-      <div className="row" style={{ marginTop: 10 }}>
-        <span className="mono" style={{ minWidth: 90 }}>Absprung</span>
-        <button disabled={busy} onClick={() => correct(-1, 0)} data-testid="takeoff-minus">-1</button>
-        <button disabled={busy} onClick={() => correct(+1, 0)} data-testid="takeoff-plus">+1</button>
-        <span className="mono" style={{ minWidth: 90, marginLeft: 20 }}>Landung</span>
-        <button disabled={busy} onClick={() => correct(0, -1)}>-1</button>
-        <button disabled={busy} onClick={() => correct(0, +1)}>+1</button>
-      </div>
+          <canvas ref={signal}
+                  style={{ width: "100%", height: 110, marginTop: 4 }} />
 
-      {result ? (<>
-      <h2>Alle Schätzer</h2>
+          <div className="row" style={{ marginTop: 10 }}>
+            <span className="mono" style={{ minWidth: 78, fontSize: 14 }}>Absprung</span>
+            <button disabled={busy} onClick={() => correct(-1, 0)}
+                    data-testid="takeoff-minus">−1</button>
+            <button disabled={busy} onClick={() => correct(+1, 0)}
+                    data-testid="takeoff-plus">+1</button>
+            <span className="mono" style={{ minWidth: 78, marginLeft: 14, fontSize: 14 }}>
+              Landung
+            </span>
+            <button disabled={busy} onClick={() => correct(0, -1)}>−1</button>
+            <button disabled={busy} onClick={() => correct(0, +1)}>+1</button>
+          </div>
+
+          {result ? (<>
+          <h2>Alle Schätzer</h2>
       <div className="grid">
         <div><dt>E2 Hüfte (Referenz)</dt><dd className="mono">{cm(result.h_e2)} cm</dd></div>
         <div><dt>E1 Flugzeit</dt><dd className="mono">{cm(result.h_e1)} cm</dd></div>
@@ -284,10 +324,12 @@ export default function Review() {
         {num(result.fps_measured, 0)} fps &middot; {String(result.pipeline_version)}
         {result.corrected ? " · korrigiert" : ""}
       </p>
-      {(result.warnings as string[] | null)?.map((w) => (
-        <div key={w} className="panel warn">{w}</div>
-      ))}
-      </>) : null}
+          {(result.warnings as string[] | null)?.map((w) => (
+            <div key={w} className="panel warn">{w}</div>
+          ))}
+          </>) : null}
+        </div>
+      </div>
     </>
   );
 }

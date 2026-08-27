@@ -1,30 +1,47 @@
 :root { --bg:#0d1114; --panel:#161b20; --line:#242c34; --ink:#e4eaf0;
         --muted:#8e9ca9; --trace:#3ed0de; --event:#ff6e6e; --warn:#e8b44a; }
 * { box-sizing:border-box; }
-body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.55 ui-sans-serif,system-ui,sans-serif; }
-main { max-width:900px; margin:0 auto; padding:32px 20px 80px; }
-h1 { font-size:28px; margin:0 0 4px; letter-spacing:-.02em; }
-h2 { font-size:18px; margin:28px 0 10px; }
-.sub { color:var(--muted); margin:0 0 24px; }
-.panel { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:18px; margin:16px 0; }
+body { margin:0; background:var(--bg); color:var(--ink);
+       font:16px/1.55 ui-sans-serif,system-ui,sans-serif; -webkit-text-size-adjust:100%; }
+main { max-width:900px; margin:0 auto; padding:28px 18px 72px; }
+h1 { font-size:26px; margin:0 0 4px; letter-spacing:-.02em; }
+h2 { font-size:17px; margin:22px 0 8px; }
+.sub { color:var(--muted); margin:0 0 18px; }
+.panel { background:var(--panel); border:1px solid var(--line); border-radius:6px;
+         padding:16px; margin:14px 0; }
 .mono { font-family:ui-monospace,monospace; font-variant-numeric:tabular-nums; }
 button { background:var(--panel); color:var(--ink); border:1px solid var(--line);
-         border-radius:5px; padding:7px 13px; font:inherit; cursor:pointer; }
+         border-radius:6px; padding:9px 14px; font:inherit; cursor:pointer;
+         min-height:42px; touch-action:manipulation; }
 button:hover:not(:disabled) { border-color:var(--trace); }
-button:disabled { opacity:.4; cursor:not-allowed; }
-.big { font-size:40px; font-weight:600; letter-spacing:-.02em; }
-.unit { font-size:18px; color:var(--muted); font-weight:400; }
-.row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:1px;
-        background:var(--line); border:1px solid var(--line); border-radius:6px; overflow:hidden; }
-.grid > div { background:var(--panel); padding:11px 13px; }
-.grid dt { font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin-bottom:3px; }
-.grid dd { margin:0; font-size:17px; }
-.stage { position:relative; line-height:0; background:#000; border-radius:6px; overflow:hidden; }
+button:disabled { opacity:.45; cursor:not-allowed; }
+.big { font-size:38px; font-weight:600; letter-spacing:-.02em; line-height:1.1; }
+.unit { font-size:17px; color:var(--muted); font-weight:400; }
+.row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(132px,1fr)); gap:1px;
+        background:var(--line); border:1px solid var(--line); border-radius:6px;
+        overflow:hidden; margin:12px 0; }
+.grid > div { background:var(--panel); padding:10px 12px; }
+.grid dt { font-size:10px; letter-spacing:.09em; text-transform:uppercase;
+           color:var(--muted); margin-bottom:3px; }
+.grid dd { margin:0; font-size:16px; }
+.stage { position:relative; line-height:0; background:#000; border-radius:6px;
+         overflow:hidden; width:100%; }
 .stage video, .stage canvas { width:100%; display:block; }
 .stage canvas { position:absolute; inset:0; }
-ul { padding-left:1.2em; } li { margin-bottom:.3em; color:var(--muted); }
+ul { padding-left:1.15em; } li { margin-bottom:.35em; color:var(--muted); }
 .warn { border-left:3px solid var(--warn); background:#e8b44a14; }
 .err { border-left:3px solid var(--event); background:#ff6e6e14; }
 input[type=file], input[type=number] { color:var(--ink); background:var(--panel);
-  border:1px solid var(--line); border-radius:5px; padding:7px; font:inherit; }
+  border:1px solid var(--line); border-radius:6px; padding:9px; font:inherit;
+  min-height:42px; max-width:100%; }
+
+/* Zwei Spalten ab Tablet: sonst steht auf dem Rechner ein hochkant gefilmtes
+   Video als schmale Saeule ueber der halben Seite und alle Zahlen liegen
+   darunter - man scrollt zwischen Bild und Werten hin und her. */
+.review { display:grid; gap:20px; }
+@media (min-width:880px) {
+  main { max-width:1160px; }
+  .review { grid-template-columns:minmax(260px,360px) 1fr; align-items:start; }
+  .review > .col-left { position:sticky; top:20px; }
+}
