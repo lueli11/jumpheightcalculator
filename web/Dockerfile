@@ -19,7 +19,13 @@ WORKDIR /app
 # war es 3000 innen und 3050 aussen - und weil Traefik die Container ueber das
 # Docker-Netz anspricht, nicht ueber den Host, gehoerte in die Domain-Konfiguration
 # der Container-Port. Das hat verlaesslich zu 502 gefuehrt. Eine Zahl fuer alles.
-ENV NODE_ENV=production JUMPHEIGHTCALCULATOR_API=http://api:8000 PORT=3050
+# HOSTNAME=0.0.0.0 ist Pflicht, nicht Kosmetik: ohne die Angabe bindet Next'
+# standalone-server.js an localhost und ist damit nur *innerhalb* des Containers
+# erreichbar. Traefik verbindet sich ueber das Docker-Netz auf die Container-IP
+# und bekam "connection refused" - sichtbar als 502, obwohl Container, Netz,
+# Router-Regel und Portangabe alle stimmten.
+ENV NODE_ENV=production JUMPHEIGHTCALCULATOR_API=http://api:8000
+ENV PORT=3050 HOSTNAME=0.0.0.0
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
