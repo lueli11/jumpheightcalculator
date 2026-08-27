@@ -154,15 +154,58 @@ async def create_analysis(body: AnalysisIn, con=Depends(get_db)):
     return {"job_id": aid, "status": "queued"}
 
 
+def _typical_seconds(con) -> float | None:
+    """Wie lange dauert eine Analyse ueblicherweise?
+
+    Aus den letzten fertigen Laeufen statt aus einer geratenen Konstante - die
+    Laufzeit haengt an Videolaenge, Aufloesung und Maschine, und ein Wert aus der
+    eigenen Vergangenheit trifft das besser als jede Schaetzung im Code.
+    """
+    rows = con.execute(
+        "SELECT created_at, finished_at FROM analysis WHERE status='ready'"
+        " AND finished_at IS NOT NULL ORDER BY created_at DESC LIMIT 10").fetchall()
+    secs = []
+    for r in rows:
+        try:
+            a = datetime.fromisoformat(r["created_at"])
+            b = datetime.fromisoformat(r["finished_at"])
+        except (TypeError, ValueError):
+            continue
+        d = (b - a).total_seconds()
+        if 5 <= d <= 3600:
+            secs.append(d)
+    if not secs:
+        return None
+    secs.sort()
+    return secs[len(secs) // 2]
+
+
 @app.get("/api/analyses/{aid}")
 def get_analysis(aid: str, con=Depends(get_db)):
     row = con.execute("SELECT * FROM analysis WHERE id=?", (aid,)).fetchone()
     if row is None:
         raise HTTPException(404, "Analyse unbekannt")
     d = db.row_to_analysis(row)
-    return {"id": d["id"], "video_id": d["video_id"], "status": d["status"],
-            "jump_type": d["jump_type"], "error": d["error"],
-            "pipeline_version": d["pipeline_version"], "result": d["result"]}
+    out = {"id": d["id"], "video_id": d["video_id"], "status": d["status"],
+           "jump_type": d["jump_type"], "error": d["error"],
+           "pipeline_version": d["pipeline_version"], "result": d["result"]}
+
+    if d["status"] in ("queued", "running"):
+        # Wie viele sind vorher dran? Der Worker arbeitet die Warteschlange nach
+        # Eingang ab (max_jobs=1), also zaehlen genau die frueher angelegten
+        # Wartenden plus die eine gerade laufende.
+        ahead = con.execute(
+            "SELECT COUNT(*) c FROM analysis WHERE status='queued' AND created_at < ?",
+            (d["created_at"],)).fetchone()["c"]
+        running = con.execute(
+            "SELECT COUNT(*) c FROM analysis WHERE status='running' AND id != ?",
+            (aid,)).fetchone()["c"]
+        out["queue_ahead"] = 0 if d["status"] == "running" else ahead + running
+        typ = _typical_seconds(con)
+        if typ is not None:
+            out["typical_seconds"] = round(typ)
+            out["eta_seconds"] = round(typ * (out["queue_ahead"] + 1))
+    return out
 
 
 @app.get("/api/analyses/{aid}/track")

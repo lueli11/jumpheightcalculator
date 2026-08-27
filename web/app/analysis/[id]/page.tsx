@@ -17,6 +17,7 @@ type Track = {
   contact: number[]; n0: number; n1: number; fps: number;
 };
 type Result = Record<string, number | string | boolean | string[] | null>;
+type Queue = { queue_ahead?: number; eta_seconds?: number; typical_seconds?: number };
 
 export default function Review() {
   const { id } = useParams<{ id: string }>();
@@ -28,6 +29,7 @@ export default function Review() {
   const [n0, setN0] = useState<number | null>(null);
   const [n1, setN1] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  const [queue, setQueue] = useState<Queue | null>(null);
 
   const video = useRef<HTMLVideoElement>(null);
   const overlay = useRef<HTMLCanvasElement>(null);
@@ -56,6 +58,10 @@ export default function Review() {
         if (stop || !tr) return;
         setTrack(tr); setN0(tr.n0); setN1(tr.n1); setFrame(tr.n0);
       } else {
+        // Warteschlangenposition und Restzeit kommen aus derselben Antwort -
+        // kein zweiter Aufruf noetig.
+        setQueue({ queue_ahead: r.queue_ahead, eta_seconds: r.eta_seconds,
+                   typical_seconds: r.typical_seconds });
         setTimeout(tick, 2000);
       }
     };
@@ -187,10 +193,37 @@ export default function Review() {
     );
   }
   if (!track || (status !== "ready" && !error)) {
+    const mmss = (s: number) =>
+      s < 90 ? `${Math.round(s)} Sekunden`
+             : `${Math.round(s / 60)} Minuten`;
     return (
       <>
-        <h1>Analyse läuft</h1>
-        <p className="sub" data-testid="status">Status: {status}</p>
+        <h1>{status === "running" ? "Wird gerechnet" : "In der Warteschlange"}</h1>
+        <p className="sub" data-testid="status">
+          {status === "running" ? (
+            <>
+              Deine Analyse läuft gerade.
+              {queue?.typical_seconds
+                ? ` Üblich sind ${mmss(queue.typical_seconds)}.` : ""}
+            </>
+          ) : queue?.queue_ahead === undefined ? (
+            <>Status: {status}</>
+          ) : queue.queue_ahead === 0 ? (
+            <>Du bist als Nächstes dran.</>
+          ) : (
+            <>
+              <b data-testid="queue-ahead">{queue.queue_ahead}</b>{" "}
+              {queue.queue_ahead === 1 ? "Analyse ist" : "Analysen sind"} vor dir.
+            </>
+          )}
+          {queue?.eta_seconds && status !== "running"
+            ? ` Voraussichtlich noch rund ${mmss(queue.eta_seconds)}.` : ""}
+        </p>
+        <p className="sub" style={{ fontSize: 14 }}>
+          Es wird eine Analyse nach der anderen gerechnet - parallel würden sie
+          sich auf einer CPU nur gegenseitig ausbremsen. Die Seite aktualisiert
+          sich selbst, du kannst sie offen lassen.
+        </p>
       </>
     );
   }

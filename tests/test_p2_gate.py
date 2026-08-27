@@ -151,6 +151,43 @@ def _fake_track(n0=40, n1=140, fps=120.0, h_m=0.45, px_per_m=400.0):
 
 
 @pytest.mark.anyio
+async def test_queue_position_is_reported(client, data_dir):
+    """"queued" allein sagt dem Nutzer nichts - er will wissen, wie viele vor ihm
+    sind. Der Worker arbeitet der Reihe nach, also zaehlen die frueher angelegten
+    Wartenden plus die eine gerade laufende."""
+    import uuid
+    from jumpheightcalculator import db as dbmod
+
+    con = dbmod.connect(data_dir / "jumpheightcalculator.sqlite")
+    vid = uuid.uuid4().hex
+    con.execute("INSERT INTO video (id, path, filename, created_at) VALUES (?,?,?,?)",
+                (vid, "x.mp4", "x.mp4", "2026-08-27T10:00:00+00:00"))
+    ids = []
+    for i, st in enumerate(["running", "queued", "queued", "queued"]):
+        aid = uuid.uuid4().hex; ids.append(aid)
+        con.execute("INSERT INTO analysis (id, video_id, jump_type, status, created_at)"
+                    " VALUES (?,?,?,?,?)",
+                    (aid, vid, "cmj", st, f"2026-08-27T10:0{i}:00+00:00"))
+    # eine fertige Analyse als Grundlage fuer die Zeitschaetzung
+    con.execute("INSERT INTO analysis (id, video_id, jump_type, status, created_at,"
+                " finished_at) VALUES (?,?,?,'ready',?,?)",
+                (uuid.uuid4().hex, vid, "cmj", "2026-08-27T09:00:00+00:00",
+                 "2026-08-27T09:01:00+00:00"))
+    con.commit(); con.close()
+
+    laufend = (await client.get(f"/api/analyses/{ids[0]}")).json()
+    assert laufend["queue_ahead"] == 0            # laeuft schon
+
+    erster = (await client.get(f"/api/analyses/{ids[1]}")).json()
+    assert erster["queue_ahead"] == 1             # nur der laufende
+
+    dritter = (await client.get(f"/api/analyses/{ids[3]}")).json()
+    assert dritter["queue_ahead"] == 3            # laufender + zwei Wartende
+    assert dritter["typical_seconds"] == 60
+    assert dritter["eta_seconds"] == 240          # 4 mal 60 s
+
+
+@pytest.mark.anyio
 async def test_refused_analysis_can_be_corrected_by_hand(client, data_dir):
     """Eine Verweigerung darf keine Sackgasse sein.
 
