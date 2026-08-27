@@ -71,18 +71,26 @@ def main(argv: list[str] | None = None) -> int:
             if a.json:
                 print(json.dumps(r.to_dict(), indent=2))
                 return 0
-            print(f"Sprunghöhe (Referenz E2) {r.h_e2*100:8.1f} cm")
-            print(f"  E1 aus der Flugzeit     {r.h_e1*100:8.1f} cm   "
-                  f"(überschätzt um Bauart, R2)")
-            print(f"  E3 Schwerpunkt          {r.h_e3*100:8.1f} cm   "
-                  f"Uneinigkeit {r.disagreement*100:.1f} cm")
-            print(f"  E4 nur Fallphase        {r.h_e4*100:8.1f} cm")
+            if r.mode == "flugzeit":
+                # Die Bahn war unbrauchbar. Was bleibt, haengt nur an den zwei
+                # Kontaktframes - und wird auch so benannt.
+                print(f"Sprunghöhe (nur Flugzeit) {r.h_e1*100:7.1f} cm"
+                      f"   ÜBERSCHÄTZT, siehe Warnung")
+            else:
+                print(f"Sprunghöhe (Referenz E2) {r.h_e2*100:8.1f} cm")
+                print(f"  E1 aus der Flugzeit     {r.h_e1*100:8.1f} cm   "
+                      f"(überschätzt um Bauart, R2)")
+                print(f"  E3 Schwerpunkt          {r.h_e3*100:8.1f} cm   "
+                      f"Uneinigkeit {r.disagreement*100:.1f} cm")
+                print(f"  E4 nur Fallphase        {r.h_e4*100:8.1f} cm")
             print()
             print(f"Absprunggeschwindigkeit {r.v0:8.2f} m/s")
             print(f"Flugzeit                {r.t_f*1000:8.0f} ms")
-            print(f"Landeabsenkung Delta    {r.delta*100:+8.1f} cm   "
-                  f"(so viel liegt E1 bei dir zu hoch)")
-            print(f"Abdruckdauer            {r.push_time*1000:8.0f} ms")
+            if r.delta is not None:
+                print(f"Landeabsenkung Delta    {r.delta*100:+8.1f} cm   "
+                      f"(so viel liegt E1 bei dir zu hoch)")
+            if r.push_time is not None:
+                print(f"Abdruckdauer            {r.push_time*1000:8.0f} ms")
             if r.contact_time:
                 print(f"Bodenkontaktzeit        {r.contact_time*1000:8.0f} ms")
             if r.rsi:
@@ -94,8 +102,8 @@ def main(argv: list[str] | None = None) -> int:
             print()
             print(f"Absprungframe {r.takeoff_frame:.2f}   Landeframe {r.landing_frame:.2f}"
                   f"   Flugframes {r.n_flight_frames}")
-            print(f"Güte {r.quality:.2f}   R2 {r.r2_hip:.4f}   {r.fps_measured:.0f} fps   "
-                  f"Pipeline {r.pipeline_version}")
+            guete = f"Güte {r.quality:.2f}   R2 {r.r2_hip:.4f}   " if r.quality is not None else ""
+            print(f"{guete}{r.fps_measured:.0f} fps   Pipeline {r.pipeline_version}")
             for w in r.warnings:
                 print(f"WARNUNG: {w}")
             return 0

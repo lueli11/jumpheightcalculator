@@ -103,6 +103,20 @@ class Refusal(RuntimeError):
     """R7 - lieber keinen Wert als einen falschen, und immer mit Grund."""
 
 
+class TrajectoryUnusable(Refusal):
+    """Die **Bahn** taugt nicht - das Timing kann trotzdem stimmen.
+
+    Der Unterschied entscheidet, ob es eine Zahl gibt. E2 kommt aus der Form der
+    Flugkurve und faellt mit ihr; E1 kommt aus `h = g*t^2/8` und braucht nur die
+    beiden Kontaktframes, keinen Massstab und keine einzige Pose-Koordinate.
+    Eine unbrauchbare Huefte macht also E2 unmoeglich und E1 nicht.
+
+    Umgekehrt gilt das nicht: steht das Timing in Frage (zu wenige Flugframes,
+    unplausible Flugzeit, Kontaktsignal gegen Koerperbewegung, gestreckte
+    Zeitachse), faellt E1 mit - dann bleibt es bei der Verweigerung.
+    """
+
+
 @dataclass(frozen=True)
 class TrackData:
     """Alles, was `measure` braucht - ohne Video, ohne Pose-Modell.
@@ -162,33 +176,33 @@ class TrackData:
 @dataclass(frozen=True)
 class Result:
     h_e1: float
-    h_e2: float
-    h_e3: float
-    h_e4: float
-    spread: float
-    disagreement: float
+    h_e2: float | None
+    h_e3: float | None
+    h_e4: float | None
+    spread: float | None
+    disagreement: float | None
     t_f: float
-    v0: float
-    v_land: float
-    delta: float
+    v0: float | None
+    v_land: float | None
+    delta: float | None
     t_takeoff: float
     t_land: float
     takeoff_frame: float
     landing_frame: float
     contact_time: float | None     # nur beim Drop Jump definiert
-    push_time: float               # tiefster Punkt der Gegenbewegung bis Absprung
+    push_time: float | None               # tiefster Punkt der Gegenbewegung bis Absprung
     rsi: float | None
     impulse: float | None
     mean_force: float | None
     # Die Masse gehört ins Ergebnis, nicht nur in die Rechnung: ohne sie lässt
     # sich später nicht sagen, mit welchem Gewicht Impuls und Kraft entstanden.
     mass_kg: float | None
-    scale: float
-    a_px: float
-    r2_hip: float
-    r2_com: float
-    rms_hip_px: float
-    cubic_t: float
+    scale: float | None
+    a_px: float | None
+    r2_hip: float | None
+    r2_com: float | None
+    rms_hip_px: float | None
+    cubic_t: float | None
     n_flight_frames: int
     mean_confidence: float
     shift_residual_px: float
@@ -196,12 +210,20 @@ class Result:
     # Gefittete Parabel in Arbeitspixeln: y(t) = c0 + c1*(t-t_ref) + c2*(t-t_ref)^2.
     # Das Overlay zeichnet damit genau die Kurve, aus der die Zahl kommt - wer sie
     # sieht, kann der Zahl widersprechen.
-    fit_c0: float
-    fit_c1: float
-    fit_c2: float
-    fit_t_ref: float
+    fit_c0: float | None
+    fit_c1: float | None
+    fit_c2: float | None
+    fit_t_ref: float | None
     jump_type: str
-    quality: float
+    quality: float | None
+    # "parabel" = der Referenzwert E2 aus dem Huefte-Fit. "flugzeit" = die Bahn
+    # war unbrauchbar, geblieben ist E1 aus den zwei Kontaktframes. E1 braucht
+    # **keinen Massstab** (h = g*t^2/8) und ist damit gegen Pose-Rauschen,
+    # Kamerawinkel und Perspektive immun - aber es ueberschaetzt bauartbedingt
+    # (R2), und um wie viel, sagt nur die Parabel. Darum zweite Wahl.
+    mode: str = "parabel"
+    # Warum die Bahn verworfen wurde - nur im Modus "flugzeit" gesetzt.
+    fallback_reason: str | None = None
     corrected: bool = False
     warnings: list[str] = field(default_factory=list)
     pipeline_version: str = PIPELINE_VERSION
@@ -529,22 +551,6 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
     `n0`/`n1` überschreiben das Flugfenster - so rechnet eine +/-1-Frame-Korrektur
     aus dem Review-Screen neu, ohne dass die Pose neu bestimmt werden muss.
     """
-    # Zuerst die Perspektive. Aendert sich der Massstab mitten im Sprung, sind
-    # alle folgenden Pruefungen Folgefehler - eine unplausible Flugzeit ist dann
-    # das Symptom, nicht die Ursache, und "verschiebe die Ereignisframes" waere
-    # ein irrefuehrender Rat: von Hand ist da nichts zu retten.
-    if abs(td.scale_drift) > MAX_SCALE_DRIFT and td.scale_spread <= MAX_SCALE_SPREAD:
-        raise Refusal(
-            f"Die Person wird während des Flugs {td.scale_drift*100:+.0f} % grösser "
-            f"im Bild - gemessen an Ober- und Unterschenkel, und Knochen wachsen "
-            f"nicht. Alle vier Segmente ändern sich dabei im Gleichschritt "
-            f"(Spanne {td.scale_spread*100:.0f} Prozentpunkte), das ist eine "
-            f"Entfernungsänderung. Du springst also auf die Kamera zu oder von ihr "
-            f"weg. Damit ändert sich der Massstab mitten im Sprung und die Höhe ist "
-            f"nicht bestimmbar. Stelle die Kamera seitlich auf, 3-4 m entfernt, und "
-            f"springe senkrecht zur Blickrichtung - ohne vor- oder zurückzuspringen."
-        )
-
     # Gegenprobe des Timings, solange nichts von Hand gesetzt wurde.
     body = td.coarse_n1 - td.coarse_n0
     foot = td.n1 - td.n0
@@ -589,6 +595,87 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
             f"{G*t_f*t_f/8*100:.0f} cm. Absprung oder Landung wurden falsch erkannt. "
             f"Im Review-Screen lassen sich die beiden Ereignisframes von Hand "
             f"verschieben; die Kontaktsignal-Kurve zeigt, wo sie hingehören."
+        )
+
+    # Ab hier haengt alles an der **Bahn**. Geht sie nicht, bleiben die zwei
+    # Kontaktframes - und die tragen h = g*t^2/8 ohne einen einzigen Pixel.
+    try:
+        return _measure_trajectory(
+            td, n0=n0, n1=n1, t0=t0, t1=t1, t_f=t_f, jump_type=jump_type,
+            mass_kg=mass_kg, seed=seed, corrected=corrected)
+    except (TrajectoryUnusable, FitError) as e:
+        return _measure_flight_time(
+            td, n0=n0, n1=n1, t0=t0, t1=t1, t_f=t_f, jump_type=jump_type,
+            mass_kg=mass_kg, corrected=corrected, grund=str(e))
+
+
+def _warnings(td: TrackData, *, corrected: bool) -> list[str]:
+    """Hinweise, die keine Verweigerung sind.
+
+    Geteilt zwischen beiden Messwegen: sie haengen an der Aufnahme, nicht an
+    der Auswertung. Die Flugzeit-Ebene braucht dieselben - wackelige Kamera
+    und eine erklaerte Zeitachse betreffen sie genauso.
+    """
+    warn: list[str] = []
+    if td.fps < 120:
+        warn.append(f"Nur {td.fps:.0f} fps - für eine Fortschrittsmessung "
+                    f"grenzwertig, bitte in Slo-Mo aufnehmen.")
+    if td.body_scale_px < MIN_BODY_PX:
+        warn.append(f"Die Person ist nur {td.body_scale_px:.0f} px gross im Bild. "
+                    f"Der Abstand als solcher stört nicht - die Selbstkalibrierung "
+                    f"gleicht ihn aus - aber die Keypoints werden unsicher. "
+                    f"Näher herangehen oder höher auflösen.")
+    if np.isfinite(td.shift_residual) and td.shift_residual > MAX_SHIFT_RESID_PX:
+        warn.append(f"Kamera wackelt (Restversatz {td.shift_residual:.2f} px) - das "
+                    f"Kontaktsignal wird dadurch unsicherer.")
+    # Ueber der Schwelle, aber die Segmente widersprechen sich: dann ist es keine
+    # Entfernungsaenderung (die skaliert alle gleich), sondern Haltung oder
+    # Pose-Rauschen. Kein Grund, die Messung zu verweigern - aber einer, es
+    # danebenzuschreiben. Die eigentliche Absicherung uebernehmen hier R2 und der
+    # Abstand E2 zu E3, die beide auf einen falschen Massstab ansprechen.
+    if abs(td.scale_drift) > MAX_SCALE_DRIFT and td.scale_spread > MAX_SCALE_SPREAD:
+        warn.append(f"Die Beinlängen ändern sich im Flug um {td.scale_drift*100:+.0f} %, "
+                    f"die vier Segmente aber uneinheitlich (Spanne "
+                    f"{td.scale_spread*100:.0f} Prozentpunkte). Das spricht für eine "
+                    f"schräge Kameraachse oder unsichere Keypoints, nicht für eine "
+                    f"Bewegung zur Kamera. Filme genau von der Seite.")
+    if td.time_scale != 1.0:
+        warn.append(f"Die Zeitachse stammt aus der von dir angegebenen Aufnahmerate "
+                    f"({td.fps:.0f} fps), nicht aus dem Video "
+                    f"({td.fps * td.time_scale:.0f} fps im Container). Stimmt die "
+                    f"Angabe nicht, ist die Höhe quadratisch daneben.")
+    if corrected:
+        warn.append("Ereignisframes wurden manuell korrigiert.")
+    return warn
+
+
+def _measure_trajectory(td: TrackData, *, n0: int, n1: int, t0: float, t1: float,
+                        t_f: float, jump_type: str, mass_kg: float | None,
+                        seed: int, corrected: bool) -> Result:
+    """Der Normalfall: E2 aus dem Scheitel der gefitteten Huefte-Parabel.
+
+    Wirft `TrajectoryUnusable`, wenn die Bahn selbst nicht taugt - dann faengt
+    `measure` das ab und liefert die Flugzeit-Hoehe. Ein `Refusal`, das **kein**
+    `TrajectoryUnusable` ist (gestreckte Zeitachse ueber
+    `_check_scale_plausible`), geht bewusst durch: dort steht die Zeitachse in
+    Frage, und daran haengt E1 genauso.
+    """
+    t = td.t
+    n_air = n1 - n0
+    # Perspektive. Steht sie schief, ist der **Massstab** hin und damit jede
+    # Hoehe aus der Bahn - die Flugzeit merkt davon nichts, denn h = g*t^2/8
+    # kennt keine Pixel. Darum kein hartes Nein, sondern der Rueckfall auf E1.
+    # Nach den Timing-Pruefungen, weil die von der Perspektive unberuehrt sind.
+    if abs(td.scale_drift) > MAX_SCALE_DRIFT and td.scale_spread <= MAX_SCALE_SPREAD:
+        raise TrajectoryUnusable(
+            f"Die Person wird während des Flugs {td.scale_drift*100:+.0f} % grösser "
+            f"im Bild - gemessen an Ober- und Unterschenkel, und Knochen wachsen "
+            f"nicht. Alle vier Segmente ändern sich dabei im Gleichschritt "
+            f"(Spanne {td.scale_spread*100:.0f} Prozentpunkte), das ist eine "
+            f"Entfernungsänderung. Du springst also auf die Kamera zu oder von ihr "
+            f"weg. Damit ändert sich der Massstab mitten im Sprung und die Höhe ist "
+            f"nicht bestimmbar. Stelle die Kamera seitlich auf, 3-4 m entfernt, und "
+            f"springe senkrecht zur Blickrichtung - ohne vor- oder zurückzuspringen."
         )
 
     # R4 - Randframes raus: dort ist der Punkt weder Kontakt noch sauberer Flug,
@@ -646,45 +733,16 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
 
     conf = float(np.nanmean(td.confidence[sel]))
 
-    warn: list[str] = []
-    if td.fps < 120:
-        warn.append(f"Nur {td.fps:.0f} fps - für eine Fortschrittsmessung "
-                    f"grenzwertig, bitte in Slo-Mo aufnehmen.")
-    if td.body_scale_px < MIN_BODY_PX:
-        warn.append(f"Die Person ist nur {td.body_scale_px:.0f} px gross im Bild. "
-                    f"Der Abstand als solcher stört nicht - die Selbstkalibrierung "
-                    f"gleicht ihn aus - aber die Keypoints werden unsicher. "
-                    f"Näher herangehen oder höher auflösen.")
-    if np.isfinite(td.shift_residual) and td.shift_residual > MAX_SHIFT_RESID_PX:
-        warn.append(f"Kamera wackelt (Restversatz {td.shift_residual:.2f} px) - das "
-                    f"Kontaktsignal wird dadurch unsicherer.")
-    # Ueber der Schwelle, aber die Segmente widersprechen sich: dann ist es keine
-    # Entfernungsaenderung (die skaliert alle gleich), sondern Haltung oder
-    # Pose-Rauschen. Kein Grund, die Messung zu verweigern - aber einer, es
-    # danebenzuschreiben. Die eigentliche Absicherung uebernehmen hier R2 und der
-    # Abstand E2 zu E3, die beide auf einen falschen Massstab ansprechen.
-    if abs(td.scale_drift) > MAX_SCALE_DRIFT and td.scale_spread > MAX_SCALE_SPREAD:
-        warn.append(f"Die Beinlängen ändern sich im Flug um {td.scale_drift*100:+.0f} %, "
-                    f"die vier Segmente aber uneinheitlich (Spanne "
-                    f"{td.scale_spread*100:.0f} Prozentpunkte). Das spricht für eine "
-                    f"schräge Kameraachse oder unsichere Keypoints, nicht für eine "
-                    f"Bewegung zur Kamera. Filme genau von der Seite.")
-    if td.time_scale != 1.0:
-        warn.append(f"Die Zeitachse stammt aus der von dir angegebenen Aufnahmerate "
-                    f"({td.fps:.0f} fps), nicht aus dem Video "
-                    f"({td.fps * td.time_scale:.0f} fps im Container). Stimmt die "
-                    f"Angabe nicht, ist die Höhe quadratisch daneben.")
-    if corrected:
-        warn.append("Ereignisframes wurden manuell korrigiert.")
+    warn = _warnings(td, corrected=corrected)
 
     if fit_hip.r2 < MIN_R2:
-        raise Refusal(
+        raise TrajectoryUnusable(
             f"Die Hüfte folgt keiner sauberen Wurfparabel (R2 = {fit_hip.r2:.4f}, "
             f"nötig > {MIN_R2}). Meist heisst das weite Kleidung oder eine teilweise "
             f"verdeckte Person."
         )
     if disagreement > MAX_DISAGREE_M:
-        raise Refusal(
+        raise TrajectoryUnusable(
             f"Hüfte und Körperschwerpunkt kommen auf {h_e2*100:.1f} cm gegen "
             f"{h_e3*100:.1f} cm - {disagreement*100:.1f} cm auseinander (Grenze "
             f"{MAX_DISAGREE_M*100:.0f} cm). Die Keypoints sind zu unsicher für eine "
@@ -698,13 +756,13 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
         # der Praxis heisst es, der Absprung liegt zu frueh und die Parabel wird
         # davor zurück-extrapoliert. Genau so kam auf dem ersten echten Video
         # E2 = 90 cm gegen E1 = 82 cm zustande.
-        raise Refusal(
+        raise TrajectoryUnusable(
             f"Widerspruch in der Physik: die Flugzeit erlaubt höchstens "
             f"{h_e1*100:.1f} cm, die Hüfte steigt aber auf {h_e2*100:.1f} cm. Der "
             f"Absprungzeitpunkt liegt zu früh."
         )
     if fit_hip.cubic_t > MAX_CUBIC_T:
-        raise Refusal(
+        raise TrajectoryUnusable(
             f"Die Flugbahn ist keine reine Parabel (kubischer Anteil t = "
             f"{fit_hip.cubic_t:.1f}). Typisch für Objektivverzeichnung bei tief "
             f"stehender Kamera oder für eine Bewegung auf die Kamera zu. Stelle das "
@@ -735,6 +793,74 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
         fit_c0=fit_hip.c0, fit_c1=fit_hip.c1, fit_c2=fit_hip.c2,
         fit_t_ref=fit_hip.t_ref,
         jump_type=jump_type, quality=quality, corrected=corrected, warnings=warn,
+    )
+
+
+def _measure_flight_time(td: TrackData, *, n0: int, n1: int, t0: float, t1: float,
+                         t_f: float, jump_type: str, mass_kg: float | None,
+                         corrected: bool, grund: str) -> Result:
+    """Zweite Wahl: die Hoehe allein aus der Flugzeit, `h = g*t_f^2/8`.
+
+    Das ist die Methode, die jede andere Sprung-App benutzt, und sie hat genau
+    eine Voraussetzung: gleiche Schwerpunkthoehe bei Absprung und Landung. Die
+    ist verletzt (man springt gestreckt ab und landet gebeugt), **deshalb
+    ueberschaetzt E1 systematisch** - auf der sauberen Referenz um 3.0 cm, auf
+    einem Anlaufsprung um 24.3 cm. Um wie viel es im Einzelfall ist, sagt nur
+    die Parabel, und die ist hier gerade weggefallen. Der Wert kommt darum mit
+    Ansage und nicht als Referenzwert.
+
+    Was E1 dafuer **nicht** braucht: einen Massstab, eine Pose, eine Perspektive.
+    In der Formel steht keine einzige Pixelkoordinate. Genau deshalb ueberlebt
+    sie, was E2 umbringt - verrauschte Keypoints, schraege Kameraachse,
+    Massstabsaenderung im Flug. Was sie **doch** braucht, sind die beiden
+    Kontaktframes und eine richtige Zeitachse; steht davon etwas in Frage, hat
+    `measure` schon vorher verweigert.
+
+    Die Kontaktzeit bleibt (sie kommt aus demselben Signal), die Abdruckdauer
+    faellt weg: die haengt am tiefsten Punkt der Huefte - also an genau der
+    Spur, die gerade als unbrauchbar gilt. Ohne sie gibt es keine mittlere
+    Kraft. Der Impuls bleibt, weil v0 hier aus der Flugzeit kommt.
+    """
+    t = td.t
+    h_e1 = G * t_f * t_f / 8.0
+    v0 = G * t_f / 2.0          # dieselbe Symmetrieannahme wie E1, nicht mehr
+    sel = slice(n0 + 1, n1 - 1)
+    with np.errstate(invalid="ignore"):
+        conf = (float(np.nanmean(td.confidence[sel]))
+                if sel.stop > sel.start else float("nan"))
+
+    k = n0 - 1
+    while k > 0 and td.contact[k] >= 0.5:
+        k -= 1
+    ct = float(t0 - t[k + 1]) if n0 - (k + 1) >= 2 else None
+    contact_time = ct if (ct is not None and ct <= 1.5) else None
+
+    warn = _warnings(td, corrected=corrected)
+    warn.insert(0, f"Die Flugbahn liess sich nicht auswerten: {grund} "
+                   f"Die Höhe kommt deshalb allein aus der Flugzeit "
+                   f"(h = g·t²/8). Sie überschätzt bauartbedingt, weil man "
+                   f"gestreckt abspringt und gebeugt landet - auf sauberen "
+                   f"Aufnahmen um 3 bis 6 cm, bei tiefer Landung deutlich mehr. "
+                   f"Absprung, Landung und Flugzeit stimmen davon unberührt.")
+
+    last = t.size - 1
+    n1c = min(n1, last)
+    return Result(
+        h_e1=h_e1, h_e2=None, h_e3=None, h_e4=None,
+        spread=None, disagreement=None,
+        t_f=t_f, v0=v0, v_land=None, delta=None,
+        t_takeoff=t0, t_land=t1,
+        takeoff_frame=n0 + (t0 - t[n0]) / max(t[min(n0 + 1, last)] - t[n0], 1e-9),
+        landing_frame=n1c + (t1 - t[n1c]) / max(t[min(n1c + 1, last)] - t[n1c], 1e-9),
+        contact_time=contact_time, push_time=None, rsi=None,
+        impulse=(mass_kg * v0) if mass_kg else None, mean_force=None,
+        mass_kg=mass_kg,
+        scale=None, a_px=None, r2_hip=None, r2_com=None, rms_hip_px=None,
+        cubic_t=None, n_flight_frames=n1 - n0, mean_confidence=conf,
+        shift_residual_px=td.shift_residual, fps_measured=td.fps,
+        fit_c0=None, fit_c1=None, fit_c2=None, fit_t_ref=None,
+        jump_type=jump_type, quality=None, mode="flugzeit", fallback_reason=grund,
+        corrected=corrected, warnings=warn,
     )
 
 

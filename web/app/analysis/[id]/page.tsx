@@ -118,7 +118,11 @@ export default function Review() {
 
         // Gefittete Parabel über das Flugfenster - genau die Kurve, aus der die
         // Zahl kommt. Deckt sie sich nicht mit der Hüfte, stimmt die Zahl nicht.
+        //
+        // Im Modus "flugzeit" gibt es keinen Fit, also auch nichts zu zeichnen.
+        // Eine Kurve aus null-Koeffizienten waere eine erfundene Kurve.
         const r = result as unknown as Record<string, number>;
+        if (typeof r.fit_t_ref === "number") {
         g.strokeStyle = "#3ed0de"; g.lineWidth = 2; g.setLineDash([6, 4]);
         g.beginPath();
         for (let i = a0; i <= a1 && i < track.t.length; i++) {
@@ -129,6 +133,7 @@ export default function Review() {
           if (i === a0) g.moveTo(x, y); else g.lineTo(x, y);
         }
         g.stroke(); g.setLineDash([]);
+        }
 
         // Skelett des aktuellen Frames
         const p = track.xy[frame];
@@ -307,8 +312,10 @@ export default function Review() {
         <div>
           {result ? (
             <p className="sub" style={{ marginBottom: 12 }}>
-              <span className="big mono" data-testid="height">{cm(result.h_e2)}</span>
-              <span className="unit"> cm Sprunghöhe</span>
+              <span className="big mono" data-testid="height">
+                {cm(result.mode === "flugzeit" ? result.h_e1 : result.h_e2)}</span>
+              <span className="unit">
+                {result.mode === "flugzeit" ? " cm (nur Flugzeit)" : " cm Sprunghöhe"}</span>
               <br />
               <span className="mono" style={{ fontSize: 15 }}>
                 {(liveTf * 1000).toFixed(0)} ms Flugzeit
@@ -350,8 +357,10 @@ export default function Review() {
           <div className="grid" style={{ marginTop: 14 }}>
             <div><dt>Flugzeit</dt><dd className="mono live">
               {(liveTf * 1000).toFixed(0)} ms</dd></div>
-            <div><dt>Höhe E2</dt><dd className="mono">
-              {result ? `${cm(result.h_e2)} cm` : "–"}</dd></div>
+            <div><dt>{result?.mode === "flugzeit" ? "Höhe E1" : "Höhe E2"}</dt>
+              <dd className="mono">{result
+                ? `${cm(result.mode === "flugzeit" ? result.h_e1 : result.h_e2)} cm`
+                : "–"}</dd></div>
             <div><dt>Absprunggeschw.</dt><dd className="mono">
               {result ? `${num(result.v0, 2)} m/s` : "–"}</dd></div>
             <div><dt>Abdruckdauer</dt><dd className="mono">

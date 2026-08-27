@@ -201,23 +201,51 @@ Gemessen R² 0.99645 gegen 0.99585 — lohnt den Aufwand nicht.
 
 ---
 
+## Zwei Messwege: Parabel, sonst Flugzeit
+
+`Result.mode` sagt, welcher gelaufen ist.
+
+- **`parabel`** — der Normalfall. Referenzwert ist **E2**, der Scheitel der
+  gefitteten Hüft-Parabel.
+- **`flugzeit`** — die Bahn war unbrauchbar. Geblieben ist **E1** aus
+  `h = g·t²/8`; alle parabelabhängigen Felder sind `None`, `fallback_reason`
+  sagt warum, und die erste Warnung erklärt es dem Nutzer.
+
+**Der Unterschied, der darüber entscheidet:** in `h = g·t²/8` steht keine
+einzige Pixelkoordinate. E1 braucht keinen Massstab, keine Pose, keine
+Perspektive — nur die zwei Kontaktframes und eine richtige Zeitachse. Genau
+deshalb überlebt es, was E2 umbringt: verrauschte Keypoints, schräge
+Kameraachse, Massstabsänderung im Flug.
+
+Umgekehrt gilt es nicht. Steht das **Timing** in Frage, fällt E1 mit — dann
+bleibt es bei der Verweigerung. `TrajectoryUnusable` (Unterklasse von `Refusal`)
+markiert die Fälle, die nur die Bahn betreffen; `measure` fängt sie ab, alles
+andere geht durch.
+
+**E1 überschätzt bauartbedingt** (R2), und um wie viel, sagt nur die Parabel —
+die hier gerade weggefallen ist. Gemessen: saubere Referenz +3.0 cm,
+Anlaufsprung mit tiefer Landung +24.3 cm. Der Wert kommt darum mit Ansage und
+heisst im Review-Screen „nur Flugzeit", nicht „Sprunghöhe".
+
 ## Alle Verweigerungen (R7)
 
 Die Reihenfolge in `measure()` ist bewusst gewählt: **Ursachen vor Symptomen.**
 
-1. **Massstabsänderung im Flug** (über 12 %, an Ober- und Unterschenkel gemessen)
-   — muss zuerst kommen. Ändert sich der Massstab, sind alle folgenden Prüfungen
-   Folgefehler, und „verschiebe die Ereignisframes" wäre ein irreführender Rat.
+**Vier davon sind keine Verweigerung mehr, sondern der Rückfall auf die
+Flugzeit** (1, 5, 6, 8 unten) — sie betreffen die Bahn, nicht das Timing.
+
+1. **Massstabsänderung im Flug** (über 12 %, gleichmässig über alle vier
+   Segmente) → Rückfall. Der Massstab ist hin, die Flugzeit nicht.
 2. **Kontaktsignal und Körperbewegung widersprechen sich** (Verhältnis ausserhalb
    0.6–1.45) — typisch für einen Sprung mit Anlauf.
 3. **Zu wenige Flugframes** (unter 10).
 4. **Flugzeit unplausibel** (ausserhalb 0.15–1.10 s).
-5. **R² der Hüft-Parabel unter 0.98.**
-6. **Abstand E2 zu E3 über 4 cm.**
-7. **E1 kleiner als E2** — Widerspruch in der Physik. Die Flugzeitmethode *muss*
+5. **R² der Hüft-Parabel unter 0.98** → Rückfall.
+6. **Abstand E2 zu E3 über 4 cm** → Rückfall.
+7. **E1 kleiner als E2** → Rückfall. Widerspruch in der Physik. Die Flugzeitmethode *muss*
    überschätzen; ist E2 grösser, ist die Hüfte angeblich höher gestiegen, als die
    Flugzeit erlaubt. In der Praxis heisst das: Absprung zu früh erkannt.
-8. **Kubischer Anteil der Residuen signifikant** (t über 4) —
+8. **Kubischer Anteil der Residuen signifikant** (t über 4) → Rückfall. —
    Objektivverzeichnung oder Bewegung zur Kamera.
 
 Davor, schon in `extract`: **gestreckte Zeitachse** (`_refuse_if_stretched`) —

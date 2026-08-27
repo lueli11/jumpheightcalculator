@@ -125,7 +125,16 @@ Fallphase.
 Keine Wattzahlen: Peak Power braucht den Kraft-Zeit-Verlauf einer
 Kraftmessplatte. Impuls und mittlere Kraft gibt es mit Körpermasse.
 
-Bei schlechter Aufnahme gibt es keine Zahl, sondern den Grund.
+**Geht die Flugbahn nicht, bleibt die Flugzeit.** Ist die Hüfte zu verrauscht
+für einen sauberen Parabelfit, rechnet die App die Höhe allein aus den beiden
+Kontaktframes (`h = g·t²/8`) und sagt das dazu. Dieser Wert überschätzt
+bauartbedingt - auf sauberen Aufnahmen um 3 bis 6 cm, bei tiefer Landung
+deutlich mehr - dafür braucht er weder Massstab noch Pose noch Perspektive.
+Absprung, Landung und Flugzeit stimmen davon unberührt.
+
+Steht dagegen das **Timing** in Frage - zu wenige Flugframes, unplausible
+Flugzeit, gestreckte Zeitachse - gibt es weiterhin keine Zahl, sondern den
+Grund.
 
 ## Tests
 

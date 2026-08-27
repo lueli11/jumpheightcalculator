@@ -152,16 +152,25 @@ def _track_with_drift(drift: float, spread: float = 0.0):
         scale_spread=spread, coarse_n0=n0, coarse_n1=n1)
 
 
-def test_perspective_drift_is_refused():
+def test_perspective_drift_falls_back_to_flight_time():
     """Wer auf die Kamera zu springt, aendert den Massstab mitten im Sprung.
 
     Gemessen an einem echten Video: die Oberschenkel wurden im Flug 33 % laenger
     im Bild. Ein Knochen waechst nicht - das ist Tiefenbewegung, und damit ist
     weder die Kruemmung noch die Selbstkalibrierung (R5) noch zu gebrauchen.
+
+    **E2 ist damit tot, E1 nicht.** In `h = g*t^2/8` steht keine einzige
+    Pixelkoordinate; ob die Person naeher kommt, ist der Flugzeit egal. Frueher
+    gab es hier gar nichts, jetzt die Flugzeit-Hoehe mit Ansage - der Nutzer
+    wollte in erster Linie Absprung, Landung und Flugzeit.
     """
-    from jumpheightcalculator.pipeline import Refusal, measure
-    with pytest.raises(Refusal, match="grösser im Bild"):
-        measure(_track_with_drift(0.33))
+    from jumpheightcalculator.pipeline import measure
+    r = measure(_track_with_drift(0.33))
+    assert r.mode == "flugzeit"
+    assert r.h_e2 is None and r.quality is None and r.scale is None
+    assert "grösser im Bild" in r.fallback_reason
+    assert r.h_e1 == pytest.approx(G * r.t_f ** 2 / 8, rel=1e-9)
+    assert any("nicht auswerten" in w for w in r.warnings)
 
 
 def test_small_drift_is_accepted():
@@ -185,6 +194,37 @@ def test_uneven_drift_only_warns():
     r = measure(_track_with_drift(0.13, spread=0.15))
     assert r.h_e2 == pytest.approx(0.45, abs=0.02)
     assert any("uneinheitlich" in w for w in r.warnings)
+
+
+def test_unusable_hip_falls_back_to_flight_time():
+    """Der Fall aus der Praxis: die Huefte ist verrauscht, das Timing stimmt.
+
+    Auf IMG_0366 springt die Huefte in den ersten 35 Flugframes um +-25 px,
+    obwohl MediaPipe dort Konfidenz 0.92-0.99 meldet - das Modell weiss nicht,
+    dass es danebenliegt. R2 faellt auf 0.9338, und je nach Ausschnitt kommen
+    42 oder 79 cm heraus. E2 ist damit nicht zu retten.
+
+    Die Kontaktframes sind davon unberuehrt (Absprung 85 gegen von Hand
+    abgelesene 86, Landung 182 exakt), also traegt E1 weiter.
+    """
+    from jumpheightcalculator.pipeline import measure
+    td = _track_with_drift(0.0)
+    rng = np.random.default_rng(7)
+    kaputt = td.hip_y.copy()
+    n0, n1 = td.n0, td.n1
+    drittel = (n1 - n0) // 3
+    kaputt[n0:n0 + drittel] += rng.normal(0, 25, drittel)   # nur das erste Drittel
+    import dataclasses
+    td = dataclasses.replace(td, hip_y=kaputt)
+
+    r = measure(td)
+    assert r.mode == "flugzeit", "verrauschte Huefte muss auf die Flugzeit zurueckfallen"
+    assert r.h_e2 is None
+    assert r.h_e1 == pytest.approx(G * r.t_f ** 2 / 8, rel=1e-9)
+    # Und das Timing kommt unveraendert durch - genau darum geht es.
+    assert r.n_flight_frames == n1 - n0
+    assert r.takeoff_frame == pytest.approx(n0, abs=1.0)
+    assert r.landing_frame == pytest.approx(n1, abs=1.0)
 
 
 def test_stretched_timebase_is_refused():
