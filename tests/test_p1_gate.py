@@ -146,7 +146,8 @@ def _track_with_drift(drift: float):
     return pl.TrackData(
         t=t, xy=np.zeros((n, 33, 2), np.float32), width=540, height=960,
         hip_y=y, com_y=y, ankle_y=y + 150, contact=contact,
-        confidence=np.full(n, 0.9), n0=n0, n1=n1, stance_end=n0 - 30, fps=fps,
+        confidence=np.full(n, 0.9), n0=n0, n1=n1,
+        stance_start=max(0, n0 - 30), stance_end=n0 - 30, fps=fps,
         shift_residual=0.1, body_scale_px=400.0, scale_drift=drift,
         coarse_n0=n0, coarse_n1=n1)
 

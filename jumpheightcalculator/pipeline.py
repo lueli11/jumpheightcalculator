@@ -33,7 +33,8 @@ import numpy as np
 from . import G, PIPELINE_VERSION
 from . import pixels as pixmod
 from . import pose as posemod
-from .fusion import CONTACT, crossing_time, flight_window, fuse, viterbi
+from .fusion import (CONTACT, crossing_time, flight_window, fuse, normalise,
+                     viterbi)
 from .ingest import probe
 from .physics import fit_parabola
 
@@ -113,6 +114,7 @@ class TrackData:
     n1: int
     coarse_n0: int           # Flugfenster aus dem Knoechelhub - Gegenprobe
     coarse_n1: int
+    stance_start: int        # letzte echte Standphase vor dem Absprung
     stance_end: int
     fps: float
     shift_residual: float
@@ -132,6 +134,8 @@ class TrackData:
             n0=int(d["n0"]), n1=int(d["n1"]),
             coarse_n0=int(d["coarse_n0"]) if "coarse_n0" in d else int(d["n0"]),
             coarse_n1=int(d["coarse_n1"]) if "coarse_n1" in d else int(d["n1"]),
+            stance_start=(int(d["stance_start"]) if "stance_start" in d
+                          else max(0, int(d["stance_end"]) - 60)),
             stance_end=int(d["stance_end"]),
             fps=float(d["fps"]), shift_residual=float(d["shift_residual"]),
             body_scale_px=float(d["body_scale_px"]),
@@ -190,7 +194,7 @@ class Result:
         return asdict(self)
 
 
-def _coarse_air(track: posemod.PoseTrack, t: np.ndarray) -> tuple[int, int, int]:
+def _coarse_air(track: posemod.PoseTrack, t: np.ndarray) -> tuple[int, int]:
     """Grobes Flugfenster aus der Knöchelhöhe.
 
     Nur zur Platzierung des ROI und als Referenz für den leeren Boden -
@@ -227,12 +231,55 @@ def _coarse_air(track: posemod.PoseTrack, t: np.ndarray) -> tuple[int, int, int]
             "Kein Sprung gefunden: die Knöchel heben nie für 0.15-1.10 s deutlich "
             "vom Boden ab. Ist die Person im Bild und der ganze Sprung aufgenommen?"
         )
-    n0, n1 = best
-    fps = 1.0 / max(float(np.median(np.diff(t))), 1e-6)
-    return n0, n1, min(max(10, n0 - int(0.5 * fps)), n0)
+    return best
 
 
-def _scale_drift(track: posemod.PoseTrack, stance_end: int, n0: int, n1: int) -> float:
+def _stance_window(track: posemod.PoseTrack, until: int) -> slice:
+    """Die letzte Standphase vor dem Absprung: wo der Fuss zuletzt stillstand.
+
+    Gesucht ist das **laengste** Fenster vor `until`, in dem die Fuss-x-Position
+    innerhalb einer halben Fusslaenge bleibt. Bei Gleichstand gewinnt das
+    spaetere - der Fuss soll dort liegen, wo er beim Abdruck liegt.
+
+    Vorher wurde blind das Fenster [t0-1.0s, t0-0.5s] genommen. Das stimmt nur,
+    wenn die Person die ganze Zeit stillsteht. Auf IMG_0366 laeuft sie ins Bild
+    und stellt sich erst 0.25 s vor dem Sprung hin: der Streifen landete bei
+    Fuss-x 38 statt 204 px - sechs Fusslaengen daneben. Er lief damit leer,
+    sobald die Person daran vorbeiging, und der Absprung wurde 41 Frames
+    (342 ms) zu frueh gemeldet.
+
+    **Nicht** zu verwechseln mit dem verworfenen Ansatz "Streifen an den Fuss im
+    Absprungmoment": gemittelt wird weiterhin ueber die ganze Standphase, nur
+    ueber die richtige.
+    """
+    x = np.nanmean(track.xy[:, [29, 30, 31, 32], 0], axis=1)
+    flen = float(np.nanmedian(np.linalg.norm(
+        track.xy[:, [31, 32]] - track.xy[:, [29, 30]], axis=2)))
+    if not np.isfinite(flen) or flen < 4:
+        flen = track.body_scale() * 0.15
+    tol = 0.5 * flen
+
+    ende = int(np.clip(until, 0, x.size - 1))
+    best, start = (0, 0), 0
+    for e in range(ende + 1):
+        while start < e and (np.nanmax(x[start:e + 1])
+                             - np.nanmin(x[start:e + 1])) > tol:
+            start += 1
+        if e - start >= best[1] - best[0]:
+            best = (start, e)
+
+    # Hinten auf eine Sekunde begrenzt. Der Streifen ist der Median ueber das
+    # Fenster, und wer lange dasteht, scharrt: auf IMG_5418 lief das Fenster
+    # ueber 5.2 s, der Streifen wanderte dadurch und das Flugfenster fiel auf
+    # 88 statt 93 Frames. Mit Deckel sind es 92 - ein Frame von der
+    # dokumentierten Referenz. Auf IMG_0366 aendert der Deckel nichts, dort
+    # steht die Person ohnehin nur 33 Frames.
+    dt = float(np.median(np.diff(track.t))) if track.t.size > 1 else 1 / 120
+    max_len = max(5, int(round(1.0 / max(dt, 1e-6))))
+    return slice(max(best[0], best[1] + 1 - max_len), best[1] + 1)
+
+
+def _scale_drift(track: posemod.PoseTrack, stance: slice, n0: int, n1: int) -> float:
     """Groessenaenderung **starrer** Segmente zwischen Stand und Flug.
 
     Genommen werden Oberschenkel und Unterschenkel beider Seiten: das sind
@@ -244,9 +291,13 @@ def _scale_drift(track: posemod.PoseTrack, stance_end: int, n0: int, n1: int) ->
     pairs = ((23, 25), (24, 26), (25, 27), (26, 28))
     lens = np.stack([np.linalg.norm(track.xy[:, a] - track.xy[:, b], axis=1)
                      for a, b in pairs])
-    lo = max(0, stance_end - 60)
+    # Gemessen wird gegen die **echte** Standphase. Mit dem alten festen Fenster
+    # (0.5 s vor dem groben Absprung) lagen auf IMG_0366 Frames, in denen die
+    # Person noch halb ausserhalb des Bildes ins Bild lief: die Gliedmassen waren
+    # dort verstuemmelt, und die Pipeline meldete +34 % Massstabsaenderung, wo
+    # keine war.
     with np.errstate(invalid="ignore"):
-        stand = np.nanmedian(lens[:, lo:max(lo + 1, stance_end)])
+        stand = np.nanmedian(lens[:, stance])
         air = np.nanmedian(lens[:, n0:max(n0 + 1, n1)])
     if not (np.isfinite(stand) and np.isfinite(air)) or stand <= 0:
         return 0.0
@@ -269,14 +320,15 @@ def extract(path: str | Path, *, scale: float | None = None,
             f"Bitte den ganzen Körper im Bild halten und enge Kleidung tragen."
         )
 
-    c_n0, c_n1, stance_end = _coarse_air(track, info.t)
+    c_n0, c_n1 = _coarse_air(track, info.t)
 
     # Zweiter Streifen an der Landestelle: wer zum Korb springt, landet nicht
     # dort, wo er abgesprungen ist.
     fps_i = max(info.measured_fps, 1.0)
     land_stance = slice(min(c_n1 + int(0.15 * fps_i), info.n_frames - 2),
                         min(c_n1 + int(0.6 * fps_i), info.n_frames - 1))
-    sig = pixmod.contact_signals(info, track, stance_end=stance_end,
+    stance = _stance_window(track, c_n0)
+    sig = pixmod.contact_signals(info, track, stance=stance,
                                  air_frames=np.arange(c_n0, c_n1),
                                  landing_stance=land_stance, scale=scale)
 
@@ -284,7 +336,7 @@ def extract(path: str | Path, *, scale: float | None = None,
     # die Person weggeht, ist er dauerhaft leer und sieht damit aus wie Flug.
     # Gemessen las Viterbi so 3.6 s "Flug" - 0.8 s Sprung plus 2.8 s Weggehen.
     guard = int(0.4 * fps_i)
-    lo, hi = max(0, c_n0 - guard), min(sig.occupancy.size, c_n1 + guard)
+    lo, hi = max(0, c_n0 - guard), min(sig.t.size, c_n1 + guard)
 
     # Kontaktsignal: 1 = Kontakt.
     #
@@ -294,15 +346,21 @@ def extract(path: str | Path, *, scale: float | None = None,
     # den Absprung sieben Frames zu frueh und blies dadurch E2 auf 90 cm auf -
     # über E1 von 82 cm, was für einen freien Flug unmöglich ist (R2 verlangt
     # die umgekehrte Reihenfolge).
-    c = np.ones(sig.occupancy.size)
-    c[lo:hi] = fuse({"occupancy": sig.occupancy[lo:hi], "gap": sig.gap[lo:hi]},
-                    {"occupancy": 0.75, "gap": 0.25})
+    #
+    # Je Streifen einzeln normiert, dann das Maximum: Kontakt heisst "irgendwo
+    # steht ein Fuss". Gemeinsam normiert drueckt der kontrastreichere Streifen
+    # den anderen unter die Schwelle.
+    c = np.ones(sig.t.size)
+    c[lo:hi] = fuse(
+        {"occupancy": np.max([normalise(o[lo:hi]) for o in sig.occupancy], axis=0),
+         "gap": np.max([normalise(g[lo:hi]) for g in sig.gap], axis=0)},
+        {"occupancy": 0.75, "gap": 0.25})
     states = viterbi(c)
     n0, n1 = flight_window(states)
 
     n = min(info.n_frames, c.size)
     conf = np.nanmean(track.vis[:n][:, list(posemod.HIP) + list(posemod.ANKLE)], axis=1)
-    drift = _scale_drift(track, stance_end, c_n0, c_n1)
+    drift = _scale_drift(track, stance, c_n0, c_n1)
     return TrackData(
         t=info.t[:n],
         xy=track.xy[:n],
@@ -311,7 +369,8 @@ def extract(path: str | Path, *, scale: float | None = None,
         com_y=track.com()[:n, 1],
         ankle_y=track.pt(posemod.ANKLE)[:n, 1],
         contact=c[:n], confidence=conf,
-        n0=n0, n1=n1, coarse_n0=c_n0, coarse_n1=c_n1, stance_end=stance_end,
+        n0=n0, n1=n1, coarse_n0=c_n0, coarse_n1=c_n1,
+        stance_start=stance.start, stance_end=stance.stop,
         fps=info.measured_fps, shift_residual=sig.shift_residual,
         body_scale_px=track.body_scale(), scale_drift=drift,
     )
@@ -419,7 +478,7 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
 
     # Abdruckdauer: vom tiefsten Punkt der Gegenbewegung bis zum Absprung -
     # anders als die Kontaktzeit auch beim CMJ definiert.
-    lo_i = max(0, min(td.stance_end, n0 - 1))
+    lo_i = max(0, min(td.stance_start, n0 - 1))
     seg = td.hip_y[lo_i:n0]
     low = (int(np.nanargmax(seg)) + lo_i) if seg.size else lo_i
     push_time = float(t0 - t[low])

@@ -146,7 +146,7 @@ def _fake_track(n0=40, n1=140, fps=120.0, h_m=0.45, px_per_m=400.0):
     return pl.TrackData(
         t=t, xy=xy, width=540, height=960, hip_y=y, com_y=y, ankle_y=y + 150,
         contact=contact, confidence=np.full(n, 0.9), n0=n0, n1=n1,
-        stance_end=max(0, n0 - 30), fps=fps, shift_residual=0.1,
+        stance_start=max(0, n0 - 30), stance_end=max(0, n0 - 30), fps=fps, shift_residual=0.1,
         body_scale_px=400.0, scale_drift=0.0, coarse_n0=n0, coarse_n1=n1)
 
 

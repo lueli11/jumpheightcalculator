@@ -21,10 +21,10 @@ from .pose import HEEL, HIP, TOE, PoseTrack
 @dataclass(frozen=True)
 class ContactSignals:
     t: np.ndarray
-    occupancy: np.ndarray     # Fuss im Streifen vorhanden? (gegen leeren Boden)
+    occupancy: np.ndarray     # (n_roi, N) Fuss im Streifen? (gegen leeren Boden)
     diff_prev: np.ndarray     # Bewegungsenergie zum stabilisierten Vorframe
     flow_y: np.ndarray        # vertikaler Optical Flow im Streifen
-    gap: np.ndarray           # Anteil "Fuss" im Zeilenprofil unter der Zehe
+    gap: np.ndarray           # (n_roi, N) Anteil "Fuss" im Zeilenprofil unter der Zehe
     roi: tuple[int, int, int, int]
     shift_residual: float     # Restversatz des Hintergrunds [px]
 
@@ -90,7 +90,7 @@ def _roi_from_stance(track: PoseTrack, st: slice) -> tuple[int, int, int, int]:
     return x0, y0, w, h
 
 
-def contact_signals(info: VideoInfo, track: PoseTrack, *, stance_end: int,
+def contact_signals(info: VideoInfo, track: PoseTrack, *, stance: slice,
                     air_frames: np.ndarray, landing_stance: slice | None = None,
                     scale: float = 0.25) -> ContactSignals:
     """Vier Signale im Streifen unter dem Fussballen.
@@ -112,8 +112,7 @@ def contact_signals(info: VideoInfo, track: PoseTrack, *, stance_end: int,
     # sauberen Sprung kippte damit E1 unter E2, was fuer einen freien Flug
     # unmoeglich ist. Spruenge mit Anlauf faengt stattdessen die Gegenprobe
     # zwischen Kontaktsignal und Knoechelhub in der Pipeline ab.
-    pre_from = max(0, stance_end - max(10, int(0.5 * info.measured_fps)))
-    rois = [_roi_from_stance(track, slice(pre_from, max(pre_from + 1, stance_end)))]
+    rois = [_roi_from_stance(track, stance)]
     if landing_stance is not None and landing_stance.stop > landing_stance.start:
         rois.append(_roi_from_stance(track, landing_stance))
 
@@ -148,7 +147,7 @@ def contact_signals(info: VideoInfo, track: PoseTrack, *, stance_end: int,
         if i in probe_at:
             probe.append(fr)
 
-    hip = track.pt(HIP)[max(0, stance_end - 200):]
+    hip = track.pt(HIP)[max(0, stance.start - 200):]
     bs = track.body_scale()
     box = (int(np.nanmin(hip[:, 0]) - 0.6 * bs), 0,
            int(np.nanmax(hip[:, 0]) + 0.6 * bs), track.height)
@@ -164,8 +163,13 @@ def contact_signals(info: VideoInfo, track: PoseTrack, *, stance_end: int,
         occ_all.append(np.array([float(np.mean(np.abs(s - ref))) for s in strips]))
         thr = float(np.median(ref)) - 2.0 * float(np.std(ref) + 1e-6)
         gap_all.append(np.array([float(np.mean(np.min(s, axis=1) < thr)) for s in strips]))
-    occupancy = np.max(np.stack(occ_all), axis=0)
-    gap = np.max(np.stack(gap_all), axis=0)
+    # Die Streifen bleiben **getrennt**. Sie erst zusammenzuwerfen und dann
+    # gemeinsam zu normieren war falsch: die beiden sehen verschiedenen Boden
+    # und verschieden viel Schuh. Gemessen auf IMG_0366 lag die Belegung am
+    # Absprungstreifen bei 83, am Landestreifen bei 118 - gemeinsam normiert
+    # kam der Stand vor dem Absprung dadurch nur noch auf 0.7 statt 1.0.
+    occupancy = np.stack(occ_all)
+    gap = np.stack(gap_all)
 
     strips = per_roi[0]
     diff_prev = np.zeros(n)

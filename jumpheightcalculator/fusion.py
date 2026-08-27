@@ -26,7 +26,17 @@ def normalise(x: np.ndarray, *, lo_pct: float = 5.0, hi_pct: float = 95.0) -> np
 
 def fuse(parts: dict[str, np.ndarray], weights: dict[str, float]) -> np.ndarray:
     """Gewichtetes Mittel der normierten Signale -> c(n) in [0,1].
-    1 heisst Kontakt, 0 heisst Flug."""
+    1 heisst Kontakt, 0 heisst Flug.
+
+    **Die Gewichtssumme ist absichtlich fest.** Ein flaches Signal wird von
+    `normalise` zu Nullen und drueckt das Ergebnis dadurch; naheliegend waere,
+    es aus der Summe zu nehmen. Gemessen ist das schlechter: auf einem
+    glaenzenden Hallenboden ist `gap` konstant, das Kontaktsignal ist damit auf
+    0.75 gedeckelt, und dieser Deckel wirkt wie eine hoehere Schwelle. Genau die
+    braucht es auch - der Schuh ist noch im Streifen, wenn er den Boden schon
+    verlassen hat. Mit fester Summe traf der Absprung auf IMG_0366 Frame 85 statt
+    86 (-1), ohne sie Frame 88 (+2), und die Landung 182 statt 181.
+    """
     total = sum(weights.get(k, 0.0) for k in parts)
     if total <= 0:
         raise ValueError("Alle Fusionsgewichte sind null.")
