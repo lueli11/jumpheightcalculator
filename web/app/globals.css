@@ -19,6 +19,14 @@ button, a.btn { background:var(--panel); color:var(--ink); border:1px solid var(
 a.btn { display:inline-flex; align-items:center; text-decoration:none; }
 button:hover:not(:disabled), a.btn:hover { border-color:var(--trace); }
 button:disabled { opacity:.45; cursor:not-allowed; }
+/* Auf dem Handy steht die Ergebnisseite ueber zwei Bildschirme (1655 px bei
+   812 px Hoehe), der Knopf oben in der Kopfzeile ist ab dem ersten Wisch weg.
+   Darum dort schwebend unten rechts - auch besser fuer den Daumen. Das
+   padding-bottom von main haelt den Platz dafuer schon frei. */
+@media (max-width:879px) {
+  a.btn.back { position:fixed; right:14px; bottom:14px; z-index:10;
+               box-shadow:0 2px 14px #000a; }
+}
 .big { font-size:38px; font-weight:600; letter-spacing:-.02em; line-height:1.1; }
 .unit { font-size:17px; color:var(--muted); font-weight:400; }
 .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }

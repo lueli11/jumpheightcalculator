@@ -206,7 +206,7 @@ export default function Review() {
       <>
         <h1>Keine Messung möglich</h1>
         <div className="panel err" data-testid="refusal">{error}</div>
-        <a className="btn" href="/" data-testid="back">Neues Video</a>
+        <a className="btn back" href="/" data-testid="back">Neues Video</a>
       </>
     );
   }
@@ -242,7 +242,7 @@ export default function Review() {
           sich auf einer CPU nur gegenseitig ausbremsen. Die Seite aktualisiert
           sich selbst, du kannst sie offen lassen.
         </p>
-        <a className="btn" href="/" data-testid="back">Neues Video</a>
+        <a className="btn back" href="/" data-testid="back">Neues Video</a>
       </>
     );
   }
@@ -261,7 +261,7 @@ export default function Review() {
     <>
       <div className="row" style={{ justifyContent: "space-between" }}>
         <h1>{result ? "Ergebnis" : "Keine Messung möglich"}</h1>
-        <a className="btn" href="/" data-testid="back">Neues Video</a>
+        <a className="btn back" href="/" data-testid="back">Neues Video</a>
       </div>
 
       <div className="review">
