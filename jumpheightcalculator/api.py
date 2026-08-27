@@ -106,7 +106,11 @@ class CorrectIn(BaseModel):
 
 
 @app.post("/api/videos", response_model=VideoOut)
-async def upload_video(file: UploadFile = File(...), con=Depends(get_db)):
+def upload_video(file: UploadFile = File(...), con=Depends(get_db)):
+    # Bewusst **kein** `async def`: die Funktion schreibt eine Datei und ruft
+    # ffprobe, beides blockierend. In einer Coroutine liefe das im Event-Loop und
+    # legte die ganze API still - auch das Statuspolling anderer Nutzer. Als
+    # gewoehnliche Funktion schiebt FastAPI sie in den Threadpool.
     vid = uuid.uuid4().hex
     dest = DATA_DIR / "videos" / f"{vid}{Path(file.filename or '').suffix or '.mp4'}"
     dest.parent.mkdir(parents=True, exist_ok=True)

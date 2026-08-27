@@ -93,11 +93,7 @@ def probe(path: str | Path) -> VideoInfo:
     num, den = (st.get("avg_frame_rate") or "0/1").split("/")
     nominal = float(num) / float(den) if float(den) else 0.0
 
-    raw = _run([
-        "ffprobe", "-v", "error", "-select_streams", "v:0",
-        "-show_entries", "frame=pts_time", "-of", "default=nw=1:nk=1", str(path),
-    ])
-    vals = [float(x) for x in raw.split() if x not in ("N/A", "")]
+    vals = _pts(path)
     if len(vals) < 3:
         raise IngestError(
             f"Nur {len(vals)} Frame-Zeitstempel lesbar - der Container trägt keine "
@@ -112,6 +108,36 @@ def probe(path: str | Path) -> VideoInfo:
     info = VideoInfo(path, t, w, h, rotation, nominal)
     _check_timebase(info)
     return info
+
+
+def _pts(path: Path) -> list[float]:
+    """Die Praesentationszeitstempel, aus dem Container-Index statt aus dem Decoder.
+
+    `frame=pts_time` **decodiert das ganze Video**, um Zahlen zu lesen, die im
+    Index schon stehen: gemessen 16.5 s fuer 41 MB und 58.1 s fuer 140 MB, bei
+    rund 43 ms je Frame in 4K. Das lief bisher im Upload-Request, der Nutzer sah
+    dafuer eine Minute "laedt hoch". `packet=pts_time` liefert dieselben Werte in
+    0.17 s - auf beiden Videos Wert fuer Wert identisch (402 bzw. 1339 Stueck).
+
+    Pakete kommen allerdings in **Decode**-Reihenfolge. Ohne B-Frames ist das
+    dasselbe wie die Anzeigereihenfolge (auf beiden Testvideos schon unsortiert
+    streng monoton), mit B-Frames nicht. Sortiert wird hier bewusst nicht: eine
+    nicht-monotone Liste ist der Hinweis, den `probe` melden soll. Sie ist aber
+    kein Grund, ein sonst brauchbares Video abzulehnen - darum in dem Fall der
+    langsame, exakte Weg ueber die Frames, und dessen Ergebnis entscheidet.
+    """
+    def lies(entity: str) -> list[float]:
+        raw = _run([
+            "ffprobe", "-v", "error", "-select_streams", "v:0",
+            "-show_entries", f"{entity}=pts_time", "-of", "default=nw=1:nk=1",
+            str(path),
+        ])
+        return [float(x) for x in raw.split() if x not in ("N/A", "")]
+
+    vals = lies("packet")
+    if len(vals) >= 3 and all(b > a for a, b in zip(vals, vals[1:])):
+        return vals
+    return lies("frame")
 
 
 def _check_timebase(info: VideoInfo) -> None:
