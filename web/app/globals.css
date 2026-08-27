@@ -10,10 +10,14 @@ h2 { font-size:17px; margin:22px 0 8px; }
 .panel { background:var(--panel); border:1px solid var(--line); border-radius:6px;
          padding:16px; margin:14px 0; }
 .mono { font-family:ui-monospace,monospace; font-variant-numeric:tabular-nums; }
-button { background:var(--panel); color:var(--ink); border:1px solid var(--line);
+/* Der Zurueck-Knopf ist ein <a>, kein <button>: Navigation gehoert einem Link,
+   damit Mittelklick, neuer Tab und Verlauf funktionieren. Nur das Aussehen
+   teilen sie sich. */
+button, a.btn { background:var(--panel); color:var(--ink); border:1px solid var(--line);
          border-radius:6px; padding:9px 14px; font:inherit; cursor:pointer;
          min-height:42px; touch-action:manipulation; }
-button:hover:not(:disabled) { border-color:var(--trace); }
+a.btn { display:inline-flex; align-items:center; text-decoration:none; }
+button:hover:not(:disabled), a.btn:hover { border-color:var(--trace); }
 button:disabled { opacity:.45; cursor:not-allowed; }
 .big { font-size:38px; font-weight:600; letter-spacing:-.02em; line-height:1.1; }
 .unit { font-size:17px; color:var(--muted); font-weight:400; }
