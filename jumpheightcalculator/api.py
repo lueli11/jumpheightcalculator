@@ -129,7 +129,7 @@ async def upload_video(file: UploadFile = File(...), con=Depends(get_db)):
     warning = None
     if info.measured_fps < FPS_WARN:
         warning = (f"Nur {info.measured_fps:.0f} fps gemessen. Für eine "
-                   f"Fortschrittsmessung sind mindestens {FPS_WARN:.0f} fps noetig - "
+                   f"Fortschrittsmessung sind mindestens {FPS_WARN:.0f} fps nötig - "
                    f"bitte in Slo-Mo aufnehmen.")
     return VideoOut(video_id=vid, filename=file.filename or dest.name,
                     width=info.width, height=info.height, rotation=info.rotation,
@@ -266,9 +266,12 @@ def correct_analysis(aid: str, body: CorrectIn, con=Depends(get_db)):
 
     # status auf ready setzen und error loeschen: eine Verweigerung, die der
     # Nutzer von Hand korrigiert hat, ist keine Verweigerung mehr.
+    # finished_at bleibt stehen: es misst, wie lange der Lauf gedauert hat, und
+    # daraus schaetzt _typical_seconds die Wartezeit. Eine Korrektur kommt oft
+    # erst Minuten spaeter - mitgeschrieben wuerde daraus eine erfundene Laufzeit.
     con.execute("UPDATE analysis SET status='ready', error=NULL, result=?, quality=?,"
-                " h_e2=?, v0=?, finished_at=? WHERE id=?",
-                (json.dumps(res.to_dict()), res.quality, res.h_e2, res.v0, _now(), aid))
+                " h_e2=?, v0=? WHERE id=?",
+                (json.dumps(res.to_dict()), res.quality, res.h_e2, res.v0, aid))
     con.commit()
     return {"id": aid, "status": "ready", "result": res.to_dict()}
 
@@ -317,7 +320,7 @@ def root():
         "name": "jumpheightcalculator",
         "status": "ok",
         "pipeline_version": PIPELINE_VERSION,
-        "hinweis": "Das ist die API, nicht die Weboberflaeche.",
+        "hinweis": "Das ist die API, nicht die Weboberfläche.",
         "endpunkte": {"doku": "/docs", "health": "/api/health",
                       "verlauf": "/api/sessions"},
     }

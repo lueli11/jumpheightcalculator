@@ -21,7 +21,7 @@ type Queue = { queue_ahead?: number; eta_seconds?: number; typical_seconds?: num
 
 export default function Review() {
   const { id } = useParams<{ id: string }>();
-  const [status, setStatus] = useState("laedt");
+  const [status, setStatus] = useState("lädt");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [track, setTrack] = useState<Track | null>(null);
@@ -74,6 +74,24 @@ export default function Review() {
   useEffect(() => {
     if (track && video.current) video.current.currentTime = track.t[frame] ?? 0;
   }, [frame, track]);
+
+  // Safari auf dem iPhone zeigt ein Video erst an, wenn es einmal gelaufen ist -
+  // `currentTime` allein malt nichts, die Fläche bleibt schwarz. Einmal
+  // anspielen und sofort pausieren erzwingt das erste Bild. Erlaubt ist das nur,
+  // weil das Video stumm und `playsInline` ist.
+  const [primed, setPrimed] = useState(false);
+  const primeVideo = useCallback(async () => {
+    const v = video.current;
+    if (!v || primed) return;
+    try {
+      await v.play();
+      v.pause();
+    } catch {
+      /* Autoplay abgelehnt - dann hilft der erste Fingertipp, siehe onClick */
+    }
+    setPrimed(true);
+    if (track) v.currentTime = track.t[frame] ?? 0;
+  }, [primed, track, frame]);
 
   const draw = useCallback(() => {
     if (!track) return;
@@ -248,9 +266,12 @@ export default function Review() {
               laedt die Videospur nicht (fehlender Codec, langsames Netz),
               kollabiert die Buehne sonst und streckt das Overlay. */}
           <div className="stage"
-               style={{ aspectRatio: `${track.width} / ${track.height}` }}>
+               style={{ aspectRatio: `${track.width} / ${track.height}`,
+                        ["--ar" as string]: track.width / track.height }}>
             <video ref={video} src={`${apiBase()}/api/analyses/${id}/video`}
-                   preload="auto" playsInline muted onLoadedMetadata={draw}
+                   preload="auto" playsInline muted
+                   onLoadedData={() => { primeVideo(); draw(); }}
+                   onClick={primeVideo}
                    data-testid="video" />
             <canvas ref={overlay} />
           </div>

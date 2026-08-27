@@ -18,15 +18,22 @@ button:disabled { opacity:.45; cursor:not-allowed; }
 .big { font-size:38px; font-weight:600; letter-spacing:-.02em; line-height:1.1; }
 .unit { font-size:17px; color:var(--muted); font-weight:400; }
 .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(132px,1fr)); gap:1px;
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(104px,1fr)); gap:1px;
         background:var(--line); border:1px solid var(--line); border-radius:6px;
         overflow:hidden; margin:12px 0; }
 .grid > div { background:var(--panel); padding:10px 12px; }
 .grid dt { font-size:10px; letter-spacing:.09em; text-transform:uppercase;
            color:var(--muted); margin-bottom:3px; }
 .grid dd { margin:0; font-size:16px; }
+.grid dd.live { color:var(--trace); }
+details { margin:12px 0; }
+details summary { cursor:pointer; color:var(--muted); font-size:14px; padding:6px 0; }
+/* --ar (Breite/Hoehe) kommt inline aus den Trackdaten. Auf dem Handy wird die
+   Buehne ueber die Hoehe begrenzt: ein hochkant gefilmtes Video fuellt sonst
+   allein den ganzen Bildschirm und alles andere liegt darunter. */
 .stage { position:relative; line-height:0; background:#000; border-radius:6px;
-         overflow:hidden; width:100%; }
+         overflow:hidden; width:100%; margin-inline:auto; }
+@media (max-width:879px) { .stage { max-width:calc(44vh * var(--ar, 0.56)); } }
 .stage video, .stage canvas { width:100%; display:block; }
 .stage canvas { position:absolute; inset:0; }
 ul { padding-left:1.15em; } li { margin-bottom:.35em; color:var(--muted); }

@@ -167,9 +167,9 @@ def analyze(path: str | Path, *, seed: int = 0,
     # Erdbeschleunigung von 2.28 statt 9.81 m/s^2.
     if fit.r2 < MIN_R2:
         raise FitError(
-            f"Die Bahn folgt keiner sauberen Wurfparabel (R2 = {fit.r2:.3f}, noetig "
+            f"Die Bahn folgt keiner sauberen Wurfparabel (R2 = {fit.r2:.3f}, nötig "
             f"> {MIN_R2}; Abweichung {fit.rms_resid:.1f} px je Punkt). Meist heisst "
-            f"das Bewegungsunschärfe: mit kuerzerer Belichtung und in Slo-Mo mit "
+            f"das Bewegungsunschärfe: mit kürzerer Belichtung und in Slo-Mo mit "
             f"mindestens 120 fps aufnehmen."
         )
     if not (MIN_FLIGHT_S <= t_f <= MAX_FLIGHT_S):

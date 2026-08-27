@@ -53,7 +53,7 @@ class ParabolaFit:
         also ist s = g / a_px [m/px]. Kein Massband, kein Referenzobjekt."""
         if self.a_px <= 0:
             raise FitError(
-                "Die gefittete Bahn kruemmt sich nach oben statt nach unten. "
+                "Die gefittete Bahn krümmt sich nach oben statt nach unten. "
                 "Das ist keine Wurfparabel - vermutlich wurde die Flugphase falsch "
                 "abgegrenzt oder die Person ist nicht durchgehend erkannt."
             )
@@ -107,7 +107,7 @@ def fit_parabola(t: np.ndarray, y: np.ndarray, *, seed: int = 0,
         raise FitError("t und y haben verschiedene Längen.")
     if t.size < min_points:
         raise FitError(
-            f"Nur {t.size} verwertbare Punkte erfasst (mindestens {min_points} noetig). "
+            f"Nur {t.size} verwertbare Punkte erfasst (mindestens {min_points} nötig). "
             f"Bitte in Slo-Mo mit mindestens 120 fps aufnehmen."
         )
 
@@ -149,7 +149,7 @@ def fit_parabola(t: np.ndarray, y: np.ndarray, *, seed: int = 0,
     if mask.sum() < min_points:
         raise FitError(
             f"Nur {int(mask.sum())} Punkte passen auf eine gemeinsame Parabel "
-            f"(mindestens {min_points} noetig). Die Bahn ist zu verrauscht oder "
+            f"(mindestens {min_points} nötig). Die Bahn ist zu verrauscht oder "
             f"die Flugphase wurde falsch abgegrenzt."
         )
 

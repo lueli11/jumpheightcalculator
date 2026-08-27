@@ -50,7 +50,7 @@ export default function Upload() {
                  onChange={(e) => setMass(e.target.value)} style={{ width: 120 }}
                  title="Optional - nur für Impuls und mittlere Kraft" />
           <button type="submit" disabled={busy} data-testid="submit">
-            {busy ? "laedt hoch..." : "Analysieren"}
+            {busy ? "lädt hoch…" : "Analysieren"}
           </button>
         </div>
       </form>
@@ -88,7 +88,7 @@ export default function Upload() {
             ist der häufigste Grund, weshalb eine Aufnahme abgelehnt wird.</li>
         <li><b>Ganzer Körper im Bild</b>, auch die Füsse im Scheitelpunkt.</li>
         <li><b>Enge Kleidung, kontrastreicher Boden.</b> Weite Hosen sind der
-            haeufigste Grund für schlechte Knöchel-Keypoints.</li>
+            häufigste Grund für schlechte Knöchel-Keypoints.</li>
       </ul>
     </>
   );

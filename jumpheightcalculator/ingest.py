@@ -100,7 +100,7 @@ def probe(path: str | Path) -> VideoInfo:
     vals = [float(x) for x in raw.split() if x not in ("N/A", "")]
     if len(vals) < 3:
         raise IngestError(
-            f"Nur {len(vals)} Frame-Zeitstempel lesbar - der Container traegt keine "
+            f"Nur {len(vals)} Frame-Zeitstempel lesbar - der Container trägt keine "
             f"brauchbaren PTS. Ohne echte Zeitstempel ist keine Messung möglich (R1)."
         )
     t = np.asarray(vals, dtype=np.float64)

@@ -359,7 +359,7 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
     n_air = n1 - n0
     if n_air < MIN_FLIGHT_FRAMES:
         raise Refusal(
-            f"Nur {n_air} Flugframes erfasst (mindestens {MIN_FLIGHT_FRAMES} noetig) - "
+            f"Nur {n_air} Flugframes erfasst (mindestens {MIN_FLIGHT_FRAMES} nötig) - "
             f"bitte in Slo-Mo mit mindestens 120 fps aufnehmen."
         )
 
@@ -374,10 +374,10 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
     if not (MIN_FLIGHT_S <= t_f <= MAX_FLIGHT_S):
         raise Refusal(
             f"Flugzeit {t_f*1000:.0f} ms liegt ausserhalb des Plausiblen "
-            f"({MIN_FLIGHT_S*1000:.0f}-{MAX_FLIGHT_S*1000:.0f} ms) - das waeren "
+            f"({MIN_FLIGHT_S*1000:.0f}-{MAX_FLIGHT_S*1000:.0f} ms) - das wären "
             f"{G*t_f*t_f/8*100:.0f} cm. Absprung oder Landung wurden falsch erkannt. "
             f"Im Review-Screen lassen sich die beiden Ereignisframes von Hand "
-            f"verschieben; die Kontaktsignal-Kurve zeigt, wo sie hingehoeren."
+            f"verschieben; die Kontaktsignal-Kurve zeigt, wo sie hingehören."
         )
 
     # R4 - Randframes raus: dort ist der Punkt weder Kontakt noch sauberer Flug,
@@ -440,9 +440,9 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
                     f"grenzwertig, bitte in Slo-Mo aufnehmen.")
     if td.body_scale_px < MIN_BODY_PX:
         warn.append(f"Die Person ist nur {td.body_scale_px:.0f} px gross im Bild. "
-                    f"Der Abstand als solcher stoert nicht - die Selbstkalibrierung "
+                    f"Der Abstand als solcher stört nicht - die Selbstkalibrierung "
                     f"gleicht ihn aus - aber die Keypoints werden unsicher. "
-                    f"Naeher herangehen oder hoeher aufloesen.")
+                    f"Näher herangehen oder höher auflösen.")
     if np.isfinite(td.shift_residual) and td.shift_residual > MAX_SHIFT_RESID_PX:
         warn.append(f"Kamera wackelt (Restversatz {td.shift_residual:.2f} px) - das "
                     f"Kontaktsignal wird dadurch unsicherer.")
@@ -452,7 +452,7 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
     if fit_hip.r2 < MIN_R2:
         raise Refusal(
             f"Die Hüfte folgt keiner sauberen Wurfparabel (R2 = {fit_hip.r2:.4f}, "
-            f"noetig > {MIN_R2}). Meist heisst das weite Kleidung oder eine teilweise "
+            f"nötig > {MIN_R2}). Meist heisst das weite Kleidung oder eine teilweise "
             f"verdeckte Person."
         )
     if disagreement > MAX_DISAGREE_M:
@@ -473,7 +473,7 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
         raise Refusal(
             f"Widerspruch in der Physik: die Flugzeit erlaubt höchstens "
             f"{h_e1*100:.1f} cm, die Hüfte steigt aber auf {h_e2*100:.1f} cm. Der "
-            f"Absprungzeitpunkt liegt zu frueh."
+            f"Absprungzeitpunkt liegt zu früh."
         )
     if fit_hip.cubic_t > MAX_CUBIC_T:
         raise Refusal(
