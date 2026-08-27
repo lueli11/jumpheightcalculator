@@ -78,7 +78,10 @@ export default function Upload() {
       <ul>
         <li><b>Slo-Mo einschalten</b> - 240 fps wenn möglich, mindestens 120.</li>
         <li><b>Kurze Belichtung.</b> Hell aufnehmen, sonst verschmiert der Fuss.</li>
-        <li><b>Handy quer auf ein Stativ</b>, so hoch wie möglich, 3-4 m Abstand.</li>
+        <li><b>Handy quer auf ein Stativ.</b> Abstand und Kamerahöhe sind
+            unkritisch - nachgerechnet von 2 bis 10 m und von 5 cm bis 2.5 m Höhe
+            ohne messbare Abweichung, weil der Massstab aus der Physik kommt und
+            nicht angenommen wird. Nur zu weit weg wird das Skelett unsicher.</li>
         <li><b>Senkrecht zur Sprungebene filmen und senkrecht springen.</b> Wer
             auf die Kamera zu springt, wird im Bild grösser - dann ändert sich der
             Massstab mitten im Sprung und die Höhe ist nicht mehr bestimmbar. Das

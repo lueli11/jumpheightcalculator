@@ -81,6 +81,13 @@ MAX_SCALE_DRIFT = 0.12
 # gebrauchen - und eine Hoehe daraus waere geraten.
 CONTACT_VS_BODY_RANGE = (0.6, 1.45)
 
+# Ab wann ist die Person zu klein im Bild? Gemessen (Lochkamera, 2 px
+# Keypoint-Rauschen, 120 fps) bleibt die Streuung noch bei 175 px Koerpergroesse
+# unter 0.4 cm - der Fit mittelt ueber rund hundert Frames. Weiter unten wird
+# aber die Pose-Erkennung selbst unzuverlaessig, und das faellt nicht mehr in die
+# Zustaendigkeit der Geometrie. Darum eine Warnung, keine Verweigerung.
+MIN_BODY_PX = 140
+
 
 class Refusal(RuntimeError):
     """R7 - lieber keinen Wert als einen falschen, und immer mit Grund."""
@@ -431,6 +438,11 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
     if td.fps < 120:
         warn.append(f"Nur {td.fps:.0f} fps - für eine Fortschrittsmessung "
                     f"grenzwertig, bitte in Slo-Mo aufnehmen.")
+    if td.body_scale_px < MIN_BODY_PX:
+        warn.append(f"Die Person ist nur {td.body_scale_px:.0f} px gross im Bild. "
+                    f"Der Abstand als solcher stoert nicht - die Selbstkalibrierung "
+                    f"gleicht ihn aus - aber die Keypoints werden unsicher. "
+                    f"Naeher herangehen oder hoeher aufloesen.")
     if np.isfinite(td.shift_residual) and td.shift_residual > MAX_SHIFT_RESID_PX:
         warn.append(f"Kamera wackelt (Restversatz {td.shift_residual:.2f} px) - das "
                     f"Kontaktsignal wird dadurch unsicherer.")

@@ -45,6 +45,36 @@ Slo-Mo ab 120 fps (240 ist besser), kurze Belichtung, Handy quer auf ein Stativ
 so hoch wie möglich, 3-4 m Abstand, senkrecht zur Sprungebene, ganzer Körper
 im Bild, enge Kleidung, kontrastreicher Boden.
 
+## Kameraposition
+
+Abstand und Kamerahöhe sind **egal**. Das ist keine Behauptung, sondern
+gerechnet: eine Lochkamera-Simulation über eine echte Wurfparabel, durch
+denselben Fit und dieselbe Selbstkalibrierung (R5) wie ein echtes Video.
+
+    Abstand 2 - 10 m          Abweichung 0.0000 %
+    Kamerahöhe 0.05 - 2.5 m   Abweichung 0.0000 %
+    Neigung 0 - 30 Grad       Abweichung max. +0.04 %
+
+Der Grund: R5 leitet den Massstab aus der Krümmung derselben Kurve ab. Ein
+konstanter Massstabsfehler kürzt sich dabei heraus - `h = g·v0²/(2a²)` bleibt
+unverändert, wenn v0 und a mit demselben Faktor skalieren.
+
+Auch die Genauigkeit leidet kaum. Mit 2 px Keypoint-Rauschen bei 120 fps:
+
+    Abstand   Person im Bild   Streuung
+      2 m        1225 px        0.06 cm
+      6 m         408 px        0.17 cm
+     14 m         175 px        0.39 cm
+
+Der Fit mittelt über rund hundert Flugframes, deshalb faellt Rauschen wenig ins
+Gewicht.
+
+**Was nicht egal ist: eine Massstabsänderung *während* des Sprungs.** Wer auf die
+Kamera zu springt, wird im Bild grösser, und dann gilt kein einziger Massstab
+mehr für die ganze Flugbahn. Genau das prüft die App an Ober- und
+Unterschenkel - Knochen wachsen nicht. Ab 12 % Änderung gibt es keinen Wert,
+sondern den Grund. An einem abgelehnten Video waren es 33 %.
+
 ## Das Gewicht
 
 Das Gewicht ist **optional**. Es wird für genau zwei Grössen gebraucht:
