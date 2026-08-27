@@ -187,6 +187,40 @@ def test_uneven_drift_only_warns():
     assert any("uneinheitlich" in w for w in r.warnings)
 
 
+def test_stretched_timebase_is_refused():
+    """Ein bereits verlangsamt exportiertes Slo-Mo ist die stillste Falle von allen.
+
+    Der Container meldet ehrlich die **Abspiel**rate, nicht die Aufnahmerate. Die
+    Bahn bleibt dabei eine saubere Parabel (auf IMG_4160 R2 = 0.996), die
+    Flugzeit sieht nur k-fach zu lang aus - und der Massstab aus R5 faellt um
+    k^2 daneben. Auffliegen kann das nur an der Groesse: auf IMG_4160 ergab die
+    Selbstkalibrierung eine Person von 24 m (Schulter bis Knoechel).
+    """
+    from jumpheightcalculator import pipeline as pl
+    from jumpheightcalculator.pipeline import Refusal, measure
+    k, fps_anzeige, px_per_m = 4.0, 30.0, 400.0
+    n, n0 = 200, 40
+    t = np.arange(n) / fps_anzeige                 # gestreckte Zeitachse
+    v0 = float(np.sqrt(2 * G * 0.45))
+    t_flug_echt = 2 * v0 / G
+    n1 = n0 + int(round(t_flug_echt * k * fps_anzeige))
+    y = np.full(n, 1000.0)
+    u = (t[n0:n1] - t[n0]) / k                     # echte Zeit
+    y[n0:n1] = 1000.0 - (v0 * u - 0.5 * G * u * u) * px_per_m
+    contact = np.ones(n); contact[n0:n1] = 0.0
+    xy = np.zeros((n, 33, 2), np.float32)
+    xy[:, [11, 12], 1] = 400.0                     # Schulter
+    xy[:, [27, 28], 1] = 600.0                     # Knoechel -> 200 px
+    td = pl.TrackData(
+        t=t, xy=xy, width=540, height=960, hip_y=y, com_y=y, ankle_y=y + 150,
+        contact=contact, confidence=np.full(n, 0.9), n0=n0, n1=n1,
+        stance_start=max(0, n0 - 30), stance_end=n0 - 30, fps=fps_anzeige,
+        shift_residual=0.1, body_scale_px=400.0, scale_drift=0.0,
+        coarse_n0=n0, coarse_n1=n1)
+    with pytest.raises(Refusal, match="Zeitachse"):
+        measure(td)
+
+
 def test_contact_and_body_must_agree():
     """Sprung mit Anlauf: der Messstreifen ist leer, weil die Person weggelaufen
     ist, nicht weil sie fliegt. Gemessen 137 gegen 76 Frames - daraus eine Hoehe

@@ -36,11 +36,15 @@ from . import pose as posemod
 from .fusion import (CONTACT, crossing_time, flight_window, fuse, normalise,
                      viterbi)
 from .ingest import probe
-from .physics import fit_parabola
+from .physics import FitError, fit_parabola
 
 MIN_FLIGHT_S, MAX_FLIGHT_S = 0.15, 1.10
 MIN_FLIGHT_FRAMES = 10
 MIN_R2 = 0.98
+# Schulter bis Knoechel, aus dem Massstab der Selbstkalibrierung zurueckgerechnet.
+# Weit gefasst - das ist eine Absurditaetspruefung gegen eine gestreckte
+# Zeitachse, keine Groessenmessung.
+BODY_LEN_BOUNDS_M = (0.5, 3.0)
 
 # Das Gütemass ist |E2-E3|, nicht die Spannweite über alle vier Schätzer.
 # E1 und E4 weichen von E2 um Delta ab - die Landeasymmetrie. Die ist gemessene
@@ -220,6 +224,7 @@ def _coarse_air(track: posemod.PoseTrack, t: np.ndarray) -> tuple[int, int]:
     # Fenster 252-360 statt 148-241 gewaehlt und der Fit kruemmte sich nach oben.
     # Hoch springt man nur einmal; herumlaufen kann man beliebig lange.
     best, best_lift = None, -np.inf
+    zu_lang = None                            # laengster Block ueber der Grenze
     i = 0
     while i < air.size:
         if air[i]:
@@ -230,15 +235,106 @@ def _coarse_air(track: posemod.PoseTrack, t: np.ndarray) -> tuple[int, int]:
             peak = float(lift[i:j].max())
             if MIN_FLIGHT_S <= dur <= MAX_FLIGHT_S and peak > best_lift:
                 best, best_lift = (i, j), peak
+            if dur > MAX_FLIGHT_S and (zu_lang is None or dur > zu_lang[2]):
+                zu_lang = (i, j, dur)
             i = j
         else:
             i += 1
+
+    # Ein Knoechelhub, der laenger dauert als physikalisch moeglich, **und** dabei
+    # einer sauberen Wurfparabel folgt, deren Massstab eine unmoegliche
+    # Koerpergroesse ergibt: dann ist nicht die Bewegung falsch, sondern die
+    # Zeitachse. Auf IMG_4160 (iPhone-Slo-Mo, bereits verlangsamt exportiert)
+    # meldet der Container ehrlich 30 fps, die Zeitleiste ist aber vierfach
+    # gestreckt - der Sprung sieht 2.8 s lang aus und faellt hier heraus, uebrig
+    # bleibt als "Sprung" ein Laufschritt aus dem Anlauf.
+    #
+    # Alle drei Bedingungen braucht es. Ein zu langer Block allein ist der
+    # Normalfall: nach der Landung geht die Person weg. Auf der sauberen Referenz
+    # dauert dieses Weggehen 2.58 s - es ist aber keine Parabel (R2 0.956 gegen
+    # 0.996), und daran wird es unterschieden.
+    if zu_lang is not None:
+        _refuse_if_stretched(t, track.pt(posemod.HIP)[:, 1], track.xy,
+                             zu_lang[0], zu_lang[1], zu_lang[2])
     if best is None:
         raise Refusal(
             "Kein Sprung gefunden: die Knöchel heben nie für 0.15-1.10 s deutlich "
             "vom Boden ab. Ist die Person im Bild und der ganze Sprung aufgenommen?"
         )
     return best
+
+
+def _refuse_if_stretched(t: np.ndarray, hip_y: np.ndarray, xy: np.ndarray,
+                         n0: int, n1: int, dur: float) -> None:
+    """Zu lang **und** saubere Parabel **und** unmoegliche Groesse -> Zeitachse.
+
+    Alle drei Bedingungen braucht es. Ein zu langes Luftfenster allein ist der
+    Normalfall: nach der Landung geht die Person weg, auf der sauberen Referenz
+    2.58 s lang. Das ist aber keine Parabel (R2 0.956 gegen 0.996), und daran
+    wird es unterschieden. Die Groessenprobe ist die dritte Sicherung.
+    """
+    sel = slice(n0 + 1, n1 - 1)
+    if sel.stop - sel.start < 8:
+        return
+    try:
+        fit = fit_parabola(t[sel], hip_y[sel])
+    except FitError:
+        return
+    if fit.r2 < MIN_R2 or fit.a_px <= 0:
+        return
+    laenge = _shoulder_ankle_px(xy) * fit.scale
+    if BODY_LEN_BOUNDS_M[0] <= laenge <= BODY_LEN_BOUNDS_M[1]:
+        return
+    k = (laenge / 1.35) ** 0.5
+    fps = 1.0 / max(float(np.median(np.diff(t))), 1e-9)
+    raise Refusal(
+        f"Die Person ist {dur:.1f} s am Stück in der Luft und fliegt dabei eine "
+        f"saubere Wurfparabel - beides zusammen geht nicht (möglich sind "
+        f"{MAX_FLIGHT_S:.2f} s). Der Massstab daraus ergäbe eine Person von "
+        f"{laenge:.0f} m. Nicht die Aufnahme ist schuld, sondern die Zeitachse: "
+        f"sie ist rund {k:.0f}-fach gestreckt, das Video also mit etwa "
+        f"{fps * k:.0f} statt {fps:.0f} fps aufgenommen und verlangsamt "
+        f"exportiert. Exportiere es mit Originalgeschwindigkeit."
+    )
+
+
+def _shoulder_ankle_px(xy: np.ndarray) -> float:
+    """Schulter-Knoechel in Pixeln, p90 - also nahe der gestreckten Haltung."""
+    sch = np.nanmean(xy[:, [11, 12]], axis=1)
+    ank = np.nanmean(xy[:, [27, 28]], axis=1)
+    with np.errstate(invalid="ignore"):
+        return float(np.nanpercentile(np.linalg.norm(sch - ank, axis=1), 90))
+
+
+def _check_scale_plausible(td: "TrackData", s: float) -> None:
+    """Gegenprobe zur Selbstkalibrierung: wie gross waere die Person demnach?
+
+    R5 leitet den Massstab aus der Kruemmung ab, `s = g / a_px`. Ist die Zeitachse
+    um k gestreckt, faellt a_px um k^2 und der Massstab waechst um k^2 - lautlos,
+    denn die Bahn bleibt eine saubere Parabel (auf IMG_4160 R2 = 0.997). Die
+    Flugzeitgrenze faengt grosse k ab, ein doppelt gestrecktes Video aber nicht:
+    aus 0.45 s werden 0.9 s, und das ist eine voellig normale Flugzeit.
+
+    Was auffliegt, ist die Groesse. Schulter-Knoechel sind bei einem Menschen rund
+    1.0-1.8 m. Gemessen: saubere Referenz 1.42 m, IMG_0366 1.80 m,
+    **IMG_4160 24.06 m**. Die Grenzen sitzen bewusst weit, das ist eine
+    Absurditaetspruefung und keine Anthropometrie.
+    """
+    px = _shoulder_ankle_px(td.xy)
+    if not np.isfinite(px) or px <= 0:
+        return
+    laenge = px * s
+    if BODY_LEN_BOUNDS_M[0] <= laenge <= BODY_LEN_BOUNDS_M[1]:
+        return
+    k = (laenge / 1.35) ** 0.5
+    raise Refusal(
+        f"Der Massstab aus der Physik ergibt eine Person von {laenge:.1f} m "
+        f"(Schulter bis Knöchel) - das kann nicht sein. Nicht die Aufnahme ist "
+        f"schuld, sondern die Zeitachse: sie ist um rund das "
+        f"{k:.1f}-fache {'gestreckt' if k > 1 else 'gestaucht'}, das Video "
+        f"also mit rund {td.fps * k:.0f} statt {td.fps:.0f} fps aufgenommen und "
+        f"verlangsamt exportiert. Exportiere es mit Originalgeschwindigkeit."
+    )
 
 
 def _stance_window(track: posemod.PoseTrack, until: int) -> slice:
@@ -460,6 +556,10 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
         t0, t1 = float(t[min(n0, t.size - 1)]), float(t[min(n1, t.size - 1)])
     t_f = t1 - t0
     if not (MIN_FLIGHT_S <= t_f <= MAX_FLIGHT_S):
+        # Wer die Frames von Hand setzt, kommt hier an, ohne dass _coarse_air je
+        # gelaufen waere - dieselbe Pruefung also noch einmal, sonst bekaeme er
+        # bei einem gestreckten Video den Rat, die Marker zu verschieben.
+        _refuse_if_stretched(t, td.hip_y, td.xy, n0, n1, t_f)
         raise Refusal(
             f"Flugzeit {t_f*1000:.0f} ms liegt ausserhalb des Plausiblen "
             f"({MIN_FLIGHT_S*1000:.0f}-{MAX_FLIGHT_S*1000:.0f} ms) - das wären "
@@ -482,6 +582,7 @@ def measure(td: TrackData, *, jump_type: str = "cmj", mass_kg: float | None = No
     fit_com = fit_parabola(tt, td.com_y[sel], seed=seed)
 
     s = fit_hip.scale                       # R5 - Massstab aus der Physik
+    _check_scale_plausible(td, s)
     h_e2 = (float(fit_hip.y_at(t0)) - fit_hip.y_apex) * s
     h_e3 = (float(fit_com.y_at(t0)) - fit_com.y_apex) * fit_com.scale
     h_e1 = G * t_f * t_f / 8.0
