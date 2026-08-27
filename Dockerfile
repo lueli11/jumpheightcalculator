@@ -17,7 +17,9 @@ RUN apt-get update \
 WORKDIR /app
 COPY pyproject.toml ./
 COPY jumpheightcalculator ./jumpheightcalculator
-RUN pip install --no-cache-dir .
+# --root-user-action/--disable-pip-version-check: in einem Container ist root
+# der Normalfall, beide Hinweise sind im Deploy-Log nur Rauschen.
+RUN pip install --no-cache-dir --root-user-action=ignore --disable-pip-version-check .
 
 # MediaPipe schon beim Bauen importieren, nicht erst zur Laufzeit: fehlt eine
 # Systembibliothek, soll der Build scheitern und nicht der erste Job des Nutzers.

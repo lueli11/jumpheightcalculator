@@ -328,21 +328,34 @@ export default function Review() {
             <button disabled={busy} onClick={() => correct(0, +1)}>+1</button>
           </div>
 
+          {/* Direkt unter den Korrekturknoepfen, nicht ganz unten: beim
+              Verschieben der Ereignisframes will man sehen, was sich aendert,
+              ohne zu scrollen. Die Flugzeit kommt aus der PTS-Tabelle und steht
+              sofort, der Rest folgt mit dem neuen Fit. */}
+          <div className="grid" style={{ marginTop: 14 }}>
+            <div><dt>Flugzeit</dt><dd className="mono live">
+              {(liveTf * 1000).toFixed(0)} ms</dd></div>
+            <div><dt>Höhe E2</dt><dd className="mono">
+              {result ? `${cm(result.h_e2)} cm` : "–"}</dd></div>
+            <div><dt>Absprunggeschw.</dt><dd className="mono">
+              {result ? `${num(result.v0, 2)} m/s` : "–"}</dd></div>
+            <div><dt>Abdruckdauer</dt><dd className="mono">
+              {result && typeof result.push_time === "number"
+                ? `${(result.push_time * 1000).toFixed(0)} ms` : "–"}</dd></div>
+            <div><dt>Delta Landung</dt><dd className="mono">
+              {result ? `${cm(result.delta)} cm` : "–"}</dd></div>
+            <div><dt>Güte</dt><dd className="mono">
+              {result ? num(result.quality, 2) : "–"}</dd></div>
+          </div>
+
           {result ? (<>
-          <h2>Alle Schätzer</h2>
-      <div className="grid">
-        <div><dt>E2 Hüfte (Referenz)</dt><dd className="mono">{cm(result.h_e2)} cm</dd></div>
-        <div><dt>E1 Flugzeit</dt><dd className="mono">{cm(result.h_e1)} cm</dd></div>
-        <div><dt>E3 Schwerpunkt</dt><dd className="mono">{cm(result.h_e3)} cm</dd></div>
-        <div><dt>E4 Fallphase</dt><dd className="mono">{cm(result.h_e4)} cm</dd></div>
-        <div><dt>Absprunggeschw.</dt><dd className="mono">{num(result.v0, 2)} m/s</dd></div>
-        <div><dt>Flugzeit</dt><dd className="mono">
-          {typeof result.t_f === "number" ? (result.t_f * 1000).toFixed(0) : "-"} ms</dd></div>
-        <div><dt>Delta Landung</dt><dd className="mono">{cm(result.delta)} cm</dd></div>
-        <div><dt>Abdruckdauer</dt><dd className="mono">
-          {typeof result.push_time === "number" ? (result.push_time * 1000).toFixed(0) : "-"} ms</dd></div>
-        <div><dt>Güte</dt><dd className="mono">{num(result.quality, 2)}</dd></div>
-      </div>
+          <h2>Alle Höhenschätzer</h2>
+          <div className="grid">
+            <div><dt>E2 Hüfte (Referenz)</dt><dd className="mono">{cm(result.h_e2)} cm</dd></div>
+            <div><dt>E1 Flugzeit</dt><dd className="mono">{cm(result.h_e1)} cm</dd></div>
+            <div><dt>E3 Schwerpunkt</dt><dd className="mono">{cm(result.h_e3)} cm</dd></div>
+            <div><dt>E4 Fallphase</dt><dd className="mono">{cm(result.h_e4)} cm</dd></div>
+          </div>
 
       {/* Impuls und mittlere Kraft gibt es nur mit Körpermasse - ohne sie fehlen
           schlicht die Eingangsgrössen. Keine Wattzahlen: Peak Power braucht den
@@ -373,14 +386,20 @@ export default function Review() {
         </p>
       )}
 
-      <p className="sub mono" style={{ marginTop: 10, fontSize: 13 }}>
-        R2 {num(result.r2_hip, 4)} &middot; |E2-E3| {cm(result.disagreement)} cm &middot;{" "}
-        {num(result.fps_measured, 0)} fps &middot; {String(result.pipeline_version)}
-        {result.corrected ? " · korrigiert" : ""}
-      </p>
-          {(result.warnings as string[] | null)?.map((w) => (
-            <div key={w} className="panel warn">{w}</div>
-          ))}
+          {/* Eingeklappt, damit auf dem Handy nicht noch ein Block Scrollweg
+              dazukommt - oeffnet sich von selbst, wenn es Warnungen gibt. */}
+          <details open={Boolean((result.warnings as string[] | null)?.length)}>
+            <summary>Messgüte und Hinweise</summary>
+            <p className="sub mono" style={{ fontSize: 13, margin: "6px 0" }}>
+              R2 {num(result.r2_hip, 4)} &middot; |E2-E3| {cm(result.disagreement)} cm
+              &middot; {num(result.fps_measured, 0)} fps &middot;{" "}
+              {String(result.pipeline_version)}
+              {result.corrected ? " · korrigiert" : ""}
+            </p>
+            {(result.warnings as string[] | null)?.map((w) => (
+              <div key={w} className="panel warn">{w}</div>
+            ))}
+          </details>
           </>) : null}
         </div>
       </div>

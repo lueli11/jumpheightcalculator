@@ -3,6 +3,10 @@ __pycache__/
 *.pyc
 .pytest_cache/
 *.egg-info/
+# setuptools-Artefakt: eine veraltete Kopie des ganzen Pakets, inklusive des
+# 30-MB-Modells, das direkt daneben ausgeschlossen ist. Kostete 35 MB je Klon.
+build/
+dist/
 
 # Laufzeitdaten und Testartefakte
 data/
@@ -24,6 +28,7 @@ web/out/
 web/test-results/
 web/playwright-report/
 web/build.log
+web/tsconfig.tsbuildinfo
 web/*.png
 
 # Nur das "full"-Modell liegt im Repo. "heavy" (30 MB) laedt man bei Bedarf

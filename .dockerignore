@@ -12,3 +12,5 @@ tests/data/
 *.mp4
 jumpheightcalculator.html
 *.egg-info/
+build/
+dist/
