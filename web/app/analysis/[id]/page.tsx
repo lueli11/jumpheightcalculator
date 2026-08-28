@@ -247,8 +247,16 @@ export default function Review() {
       Sekunde du gefilmt hast - das Video liegt noch hier, es muss nicht neu
       hochgeladen werden.
       <div className="row" style={{ marginTop: 10 }}>
-        <input type="number" placeholder="z.B. 120" value={fps} min={20} max={1000}
-               data-testid="capture-fps-fix" style={{ width: 130 }}
+        {/* Handys filmen 120 oder 240, nie 129. Die Meldung nennt den passenden
+            Wert; hier ist er ein Klick, damit niemand die geschaetzte Zahl
+            abtippt - die waere quadratisch daneben. */}
+        {[60, 120, 240].map((v) => (
+          <button key={v} onClick={() => setFps(String(v))}
+                  style={{ opacity: fps === String(v) ? 1 : 0.65 }}
+                  data-testid={`fps-${v}`}>{v}</button>
+        ))}
+        <input type="number" placeholder="andere" value={fps} min={20} max={1000}
+               data-testid="capture-fps-fix" style={{ width: 110 }}
                onChange={(e) => setFps(e.target.value)} />
         <button onClick={nachtragen} disabled={!fps || fpsBusy}
                 data-testid="capture-fps-apply">

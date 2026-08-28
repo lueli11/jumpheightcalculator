@@ -292,6 +292,24 @@ def _coarse_air(track: posemod.PoseTrack, t: np.ndarray,
     return best
 
 
+# Bildraten, die es an Kameras wirklich gibt. Die Schaetzung aus der Geometrie
+# ist ungenau (sie unterstellt 1.35 m Schulter-Knoechel), und wer den rohen Wert
+# abtippt, rechnet quadratisch daneben: 129 statt 120 sind 13 % zu wenig Hoehe.
+# Darum wird die Schaetzung auf die naechste **echte** Rate gerundet und die
+# rohe Zahl nur noch als Herkunft genannt.
+CAMERA_FPS = (24.0, 25.0, 30.0, 48.0, 50.0, 60.0, 100.0, 120.0, 200.0, 240.0,
+              480.0, 960.0)
+
+
+def _nearest_camera_fps(fps: float) -> float:
+    """Die naechste uebliche Aufnahmerate - relativ gemessen, nicht absolut.
+
+    Absolut waere 129 gleich weit von 120 wie von 138; relativ zaehlt aber das
+    Verhaeltnis, denn genau das geht quadratisch in die Hoehe ein.
+    """
+    return min(CAMERA_FPS, key=lambda f: abs(np.log(f / max(fps, 1e-9))))
+
+
 def _timebase_advice(time_scale: float, fps: float, k: float) -> str:
     """Der Rat haengt davon ab, ob schon eine Aufnahmerate angegeben wurde.
 
@@ -299,14 +317,17 @@ def _timebase_advice(time_scale: float, fps: float, k: float) -> str:
     Mit Angabe waere derselbe Rat zirkulaer - dann ist die **Angabe** falsch, und
     zwar um genau diesen Faktor.
     """
+    roh = fps * k
+    echt = _nearest_camera_fps(roh)
     if time_scale == 1.0:
-        return (f"Das Video ist also mit etwa {fps * k:.0f} statt {fps:.0f} fps "
-                f"aufgenommen und verlangsamt exportiert. Exportiere es mit "
-                f"Originalgeschwindigkeit, oder gib die Aufnahmerate beim "
-                f"Hochladen an.")
+        return (f"Das Video ist also verlangsamt exportiert und dürfte mit "
+                f"{echt:.0f} fps aufgenommen sein statt der {fps:.0f} fps, die "
+                f"im Container stehen (aus der Bahn geschätzt: {roh:.0f}). "
+                f"Trag {echt:.0f} ein, oder exportiere das Video mit "
+                f"Originalgeschwindigkeit.")
     return (f"Die angegebene Aufnahmerate von {fps:.0f} fps kann nicht stimmen - "
-            f"rund {fps * k:.0f} fps waeren es. Lade das Video mit dem "
-            f"korrigierten Wert erneut hoch.")
+            f"nach der Bahn wären es {roh:.0f}, also vermutlich {echt:.0f} fps. "
+            f"Trag den korrigierten Wert ein.")
 
 
 def _refuse_if_stretched(t: np.ndarray, hip_y: np.ndarray, xy: np.ndarray,

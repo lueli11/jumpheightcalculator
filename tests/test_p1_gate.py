@@ -227,6 +227,21 @@ def test_unusable_hip_falls_back_to_flight_time():
     assert r.landing_frame == pytest.approx(n1, abs=1.0)
 
 
+def test_suggested_fps_is_a_real_camera_rate():
+    """Die Meldung darf keine Bildrate vorschlagen, die es nicht gibt.
+
+    Die Schaetzung kommt aus der Geometrie und unterstellt 1.35 m
+    Schulter-Knoechel, ist also ungenau. Auf IMG_4160 kam 129 heraus - wer das
+    abtippt, bekommt (120/129)^2 = 13 % zu wenig Hoehe, ohne dass es auffaellt.
+    Gerundet wird **relativ**, weil genau das Verhaeltnis quadratisch eingeht.
+    """
+    from jumpheightcalculator.pipeline import _nearest_camera_fps, _timebase_advice
+    for roh, erwartet in ((129, 120), (118, 120), (235, 240), (61, 60), (29, 30)):
+        assert _nearest_camera_fps(roh) == erwartet, roh
+    text = _timebase_advice(1.0, 30.0, 4.3)          # 30 * 4.3 = 129
+    assert "120 fps aufgenommen" in text and "129" in text, text
+
+
 def test_stretched_timebase_is_refused():
     """Ein bereits verlangsamt exportiertes Slo-Mo ist die stillste Falle von allen.
 
