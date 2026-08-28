@@ -101,6 +101,10 @@ class AnalysisIn(BaseModel):
     mass_kg: float | None = Field(default=None, gt=0, lt=300)
 
 
+class CaptureFpsIn(BaseModel):
+    capture_fps: float | None = Field(default=None, ge=MIN_FPS, le=MAX_FPS)
+
+
 class CorrectIn(BaseModel):
     takeoff_frame: int | None = None
     landing_frame: int | None = None
@@ -206,9 +210,13 @@ def get_analysis(aid: str, con=Depends(get_db)):
     if row is None:
         raise HTTPException(404, "Analyse unbekannt")
     d = db.row_to_analysis(row)
+    vid = con.execute("SELECT capture_fps, fps_measured FROM video WHERE id=?",
+                      (d["video_id"],)).fetchone()
     out = {"id": d["id"], "video_id": d["video_id"], "status": d["status"],
            "jump_type": d["jump_type"], "error": d["error"],
-           "pipeline_version": d["pipeline_version"], "result": d["result"]}
+           "pipeline_version": d["pipeline_version"], "result": d["result"],
+           "capture_fps": vid["capture_fps"] if vid else None,
+           "fps_measured": vid["fps_measured"] if vid else None}
 
     if d["status"] in ("queued", "running"):
         # Wie viele sind vorher dran? Der Worker arbeitet die Warteschlange nach
@@ -226,6 +234,39 @@ def get_analysis(aid: str, con=Depends(get_db)):
             out["typical_seconds"] = round(typ)
             out["eta_seconds"] = round(typ * (out["queue_ahead"] + 1))
     return out
+
+
+@app.post("/api/analyses/{aid}/capture-fps")
+async def set_capture_fps(aid: str, body: CaptureFpsIn, con=Depends(get_db)):
+    """Aufnahmerate nachtragen und dieselbe Analyse neu rechnen.
+
+    Ohne das ist eine Zeitachsen-Verweigerung eine Sackgasse: die App sagt dem
+    Nutzer, dass sein Slo-Mo verlangsamt exportiert ist und mit welcher Rate er
+    gefilmt hat - und der einzige Ausweg waere gewesen, dieselben 20-140 MB noch
+    einmal hochzuladen. Die Datei liegt schon auf der Platte.
+
+    Der Wert haengt am **Video**, nicht am Lauf: die Zeitachse ist eine
+    Eigenschaft der Datei, und zwei Analysen desselben Videos duerfen sich darin
+    nicht widersprechen. Track und Vorschau werden verworfen, weil beide auf der
+    alten Achse entstanden sind - der Track traegt sie in `t`, das Proxy in
+    seinen Zeitstempeln.
+    """
+    row = con.execute("SELECT video_id, track_path, proxy_path FROM analysis "
+                      "WHERE id=?", (aid,)).fetchone()
+    if row is None:
+        raise HTTPException(404, "Analyse unbekannt")
+
+    con.execute("UPDATE video SET capture_fps=? WHERE id=?",
+                (body.capture_fps, row["video_id"]))
+    con.execute("UPDATE analysis SET status='queued', error=NULL, result=NULL,"
+                " quality=NULL, h_e2=NULL, v0=NULL, track_path=NULL,"
+                " proxy_path=NULL, finished_at=NULL WHERE id=?", (aid,))
+    con.commit()
+    for alt_pfad in (row["track_path"], row["proxy_path"]):
+        if alt_pfad:
+            Path(alt_pfad).unlink(missing_ok=True)
+    await enqueue(aid)
+    return {"job_id": aid, "status": "queued", "capture_fps": body.capture_fps}
 
 
 @app.get("/api/analyses/{aid}/track")

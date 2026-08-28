@@ -31,6 +31,8 @@ export default function Review() {
   const [n1, setN1] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [queue, setQueue] = useState<Queue | null>(null);
+  const [fps, setFps] = useState("");
+  const [fpsBusy, setFpsBusy] = useState(false);
 
   const video = useRef<HTMLVideoElement>(null);
   const overlay = useRef<HTMLCanvasElement>(null);
@@ -217,11 +219,51 @@ export default function Review() {
     }
   }
 
+  // Eine Zeitachsen-Verweigerung passiert schon in `extract`, es gibt also
+  // keinen Track und nichts zu korrigieren - der Nutzer koennte sonst nur neu
+  // hochladen. Die Datei liegt aber noch auf dem Server; hier reicht die Zahl.
+  async function nachtragen() {
+    if (!fps) return;
+    setFpsBusy(true);
+    try {
+      const r = await fetch(`${apiBase()}/api/analyses/${id}/capture-fps`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ capture_fps: Number(fps) }),
+      });
+      if (!r.ok) throw new Error((await r.json()).detail ?? "abgelehnt");
+      // Neu laden statt Zustand von Hand zurueckdrehen: die Analyse faengt von
+      // vorne an, und das Polling auch.
+      location.reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setFpsBusy(false);
+    }
+  }
+
+  const fpsFormular = (
+    <div className="panel">
+      <b>Slo-Mo schon verlangsamt exportiert?</b> Dann steht im Video die
+      Abspielrate statt der Aufnahmerate. Trag ein, mit wie vielen Bildern pro
+      Sekunde du gefilmt hast - das Video liegt noch hier, es muss nicht neu
+      hochgeladen werden.
+      <div className="row" style={{ marginTop: 10 }}>
+        <input type="number" placeholder="z.B. 120" value={fps} min={20} max={1000}
+               data-testid="capture-fps-fix" style={{ width: 130 }}
+               onChange={(e) => setFps(e.target.value)} />
+        <button onClick={nachtragen} disabled={!fps || fpsBusy}
+                data-testid="capture-fps-apply">
+          {fpsBusy ? "rechnet neu…" : "Neu rechnen"}
+        </button>
+      </div>
+    </div>
+  );
+
   if (error && !track) {
     return (
       <>
         <h1>Keine Messung möglich</h1>
         <div className="panel err" data-testid="refusal">{error}</div>
+        {fpsFormular}
         <a className="btn back" href="/" data-testid="back">Neues Video</a>
       </>
     );

@@ -257,6 +257,13 @@ Dazu Warnungen ohne Verweigerung: unter 120 fps, Kamerawackeln (Restversatz übe
 0.5 px), Person unter 140 px gross im Bild, ungleichmässige Beinlängenänderung im
 Flug, und eine per `capture_fps` erklärte Zeitachse.
 
+**Auch die Zeitachsen-Verweigerung ist keine Sackgasse.** Sie passiert schon in
+`extract`, es gibt also keinen Track und nichts von Hand zu korrigieren. Der
+Review-Screen zeigt dort stattdessen ein Feld für die Aufnahmerate;
+`POST /api/analyses/{id}/capture-fps` setzt sie **am Video**, verwirft Track und
+Vorschau (beide tragen die alte Achse) und reiht dieselbe Analyse neu ein. Ohne
+das wäre der einzige Ausweg ein zweiter Upload derselben 20–140 MB.
+
 **Eine Verweigerung ist keine Sackgasse.** Track und Vorschauvideo werden auch im
 Fehlerfall in der Datenbank vermerkt; der Review-Screen zeigt dann Video,
 Kontaktsignal und Korrekturknöpfe. Wer die Ereignisframes von Hand setzt, macht
@@ -374,11 +381,13 @@ liegt im Mittel 1.81 px auf der Hüfte (bei 960 px Bildhöhe).
 
 ```
 POST /api/videos                 → video_id, erkannte fps, Auflösung, Warnung < 120 fps
+                                   Formularfeld `capture_fps` optional (R1-Ausnahme)
 POST /api/analyses               → job_id      {video_id, jump_type, mass_kg?}
 GET  /api/analyses/{id}          → Status, alle Messwerte, Warteschlangenposition
 GET  /api/analyses/{id}/track    → Keypoints, Kontaktsignal, Zeitstempel (fürs Overlay)
 GET  /api/analyses/{id}/video    → herunterskaliertes Vorschauvideo
 POST /api/analyses/{id}/correct  → korrigierte Ereignisframes, rechnet neu
+POST /api/analyses/{id}/capture-fps → Aufnahmerate nachtragen, reiht neu ein
 GET  /api/sessions               → Verlauf, optional als CSV
 ```
 

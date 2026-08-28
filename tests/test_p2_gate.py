@@ -228,6 +228,50 @@ async def test_refused_analysis_can_be_corrected_by_hand(client, data_dir):
 
 @pytest.mark.slow
 @pytest.mark.anyio
+async def test_capture_fps_can_be_added_after_a_refusal(client, data_dir, queued):
+    """Eine Zeitachsen-Verweigerung darf keine Sackgasse sein.
+
+    Sie passiert schon in `extract`, es gibt also keinen Track und nichts von
+    Hand zu korrigieren. Ohne diesen Weg bliebe nur, dieselbe Datei noch einmal
+    hochzuladen - bei einem Handyvideo 20 bis 140 MB, obwohl sie auf dem Server
+    schon liegt.
+    """
+    con = db.connect(data_dir / "jumpheightcalculator.sqlite")
+    con.execute(
+        "INSERT INTO video (id, path, filename, width, height, rotation, n_frames,"
+        " duration, fps_measured, created_at) VALUES"
+        " ('v1','/x/y.mov','y.mov',540,960,0,267,8.87,30.0,'2026-01-01T00:00:00Z')")
+    spur = data_dir / "alt.npz"
+    spur.write_bytes(b"alte Zeitachse")
+    con.execute(
+        "INSERT INTO analysis (id, video_id, jump_type, status, error, track_path,"
+        " created_at) VALUES ('a1','v1','cmj','failed','Zeitachse gestreckt',?,"
+        " '2026-01-01T00:00:00Z')", (str(spur),))
+    con.commit()
+
+    r = await client.post("/api/analyses/a1/capture-fps", json={"capture_fps": 120})
+    assert r.status_code == 200, r.text
+
+    row = con.execute("SELECT a.status, a.error, a.track_path, v.capture_fps "
+                      "FROM analysis a JOIN video v ON v.id=a.video_id "
+                      "WHERE a.id='a1'").fetchone()
+    assert row["capture_fps"] == 120.0, "der Wert gehoert ans Video, nicht an den Lauf"
+    assert row["status"] == "queued" and row["error"] is None
+    assert row["track_path"] is None and not spur.exists(), (
+        "der alte Track traegt die alte Zeitachse und muss weg")
+    assert queued == ["a1"], "und die Analyse muss wieder in die Warteschlange"
+
+    # Unsinn faellt an derselben Schranke wie beim Upload.
+    for unsinn in (0, -120, 5, 100000):
+        bad = await client.post("/api/analyses/a1/capture-fps",
+                                json={"capture_fps": unsinn})
+        assert bad.status_code == 422, f"{unsinn} haette abgelehnt werden muessen"
+    assert (await client.post("/api/analyses/gibtsnicht/capture-fps",
+                              json={"capture_fps": 120})).status_code == 404
+    con.close()
+
+
+@pytest.mark.anyio
 @pytest.mark.skipif(not REAL_VIDEO.exists(), reason="kein echtes Sprungvideo vorhanden")
 async def test_api_result_matches_pipeline(client, data_dir, queued):
     """P2.1 - was die API ausliefert, ist Zahl fuer Zahl das, was die Pipeline rechnet.

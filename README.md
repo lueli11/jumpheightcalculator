@@ -88,8 +88,10 @@ eine Person von 24 m. Zwei Auswege:
 
 1. **Neu exportieren.** In Fotos die Zeitlupen-Marker ganz aufziehen, dann liegen
    die echten 120 oder 240 fps in der Datei und alles rechnet von selbst.
-2. **Aufnahmerate angeben.** Beim Hochladen ins Feld *fps der Aufnahme*, oder auf
-   der Kommandozeile:
+2. **Aufnahmerate angeben.** Beim Hochladen ins Feld *fps der Aufnahme* - oder
+   **nachträglich**: kommt die Verweigerung, steht auf demselben Bildschirm ein
+   Feld dafür, und die App rechnet dieselbe Analyse neu. Das Video bleibt liegen,
+   es muss nicht noch einmal hochgeladen werden. Auf der Kommandozeile:
 
         ... analyze VIDEO.MOV --capture-fps 120
 
