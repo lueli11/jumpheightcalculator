@@ -6,7 +6,7 @@ Misst Flugzeit, Absprunggeschwindigkeit und Sprunghöhe aus einem Handyvideo.
 
     docker compose up --build -d
 
-Danach: Weboberflaeche auf Port **3050**, API auf Port **8000** (Doku unter
+Danach: Weboberfläche auf Port **3050**, API auf Port **8000** (Doku unter
 `/docs`). Beide sind verstellbar:
 
     WEB_PORT=3050 API_PORT=8000 docker compose up --build -d
@@ -30,7 +30,7 @@ Beide Ports müssen vom Handy aus erreichbar sein.
     .venv/Scripts/pip install -e ".[dev]"
     .venv/Scripts/python -m jumpheightcalculator analyze VIDEO.MOV --jump-type cmj --mass-kg 65
 
-Weboberflaeche lokal, in drei Terminals:
+Weboberfläche lokal, in drei Terminals:
 
     .venv/Scripts/python -m uvicorn jumpheightcalculator.api:app --port 8000
     .venv/Scripts/python scripts/local_worker.py
@@ -66,7 +66,7 @@ Auch die Genauigkeit leidet kaum. Mit 2 px Keypoint-Rauschen bei 120 fps:
       6 m         408 px        0.17 cm
      14 m         175 px        0.39 cm
 
-Der Fit mittelt über rund hundert Flugframes, deshalb faellt Rauschen wenig ins
+Der Fit mittelt über rund hundert Flugframes, deshalb fällt Rauschen wenig ins
 Gewicht.
 
 **Was nicht egal ist: eine Massstabsänderung *während* des Sprungs.** Wer auf die
@@ -140,6 +140,11 @@ Grund.
 
 ## Tests
 
+    .venv/Scripts/ruff check .                        # Lint
     .venv/Scripts/python -m pytest -q -m "not slow"   # schnell
     .venv/Scripts/python -m pytest -q                 # inkl. Videogenerierung
     cd web && npx playwright test                     # braucht laufende Dienste
+
+Lint und die schnellen Tests laufen auch in GitHub Actions
+(`.github/workflows/ci.yml`) bei jedem Push und Pull Request - dort zusätzlich
+mit Web-Typcheck und -Build.

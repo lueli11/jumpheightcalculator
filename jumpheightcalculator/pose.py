@@ -1,7 +1,7 @@
 """S1 - Pose-Zweig.
 
-Liefert Trajektorien und die Bezugsgroessen, mit denen alle Schwellwerte
-normiert werden. Das Timing kommt ausdruecklich **nicht** von hier (R3): beim
+Liefert Trajektorien und die Bezugsgrössen, mit denen alle Schwellwerte
+normiert werden. Das Timing kommt ausdrücklich **nicht** von hier (R3): beim
 Abdruck streckt sich der Fuss, der Knöchel steigt also bereits, während die
 Zehe noch aufliegt. Der Pose-Zweig sagt, *wo* man hinschauen muss.
 """
@@ -74,7 +74,7 @@ class PoseTrack:
 
     def body_scale(self) -> float:
         """Körperlänge Schulter-Knöchel [px]. Normiert alle Schwellwerte,
-        damit nichts von Auflösung oder Kameraabstand abhaengt."""
+        damit nichts von Auflösung oder Kameraabstand abhängt."""
         d = np.linalg.norm(self.pt(SHOULDER) - self.pt(ANKLE), axis=1)
         return float(np.nanmedian(d))
 
@@ -94,10 +94,10 @@ class PoseTrack:
 def smooth(y: np.ndarray, window: int = 9, order: int = 2) -> np.ndarray:
     """Savitzky-Golay statt gleitendem Mittel.
 
-    Ein gleitendes Mittel ist ein Tiefpass und daempft genau die Krümmung, die
-    spaeter gefittet wird - es wuerde die Schwerkraft kleiner erscheinen lassen
-    und über R5 den Massstab verfaelschen. Savitzky-Golay legt lokal ein Polynom
-    und laesst die zweite Ableitung stehen.
+    Ein gleitendes Mittel ist ein Tiefpass und dämpft genau die Krümmung, die
+    später gefittet wird - es würde die Schwerkraft kleiner erscheinen lassen
+    und über R5 den Massstab verfälschen. Savitzky-Golay legt lokal ein Polynom
+    und lässt die zweite Ableitung stehen.
     """
     n = y.size
     w = min(window if window % 2 else window + 1, n if n % 2 else n - 1)
@@ -110,15 +110,16 @@ def track(info: VideoInfo, *, model: str = "full", scale: float = 0.25,
           min_conf: float = 0.3) -> PoseTrack:
     """Keypoints je Frame.
 
-    Bewusst im IMAGE-Modus, nicht im VIDEO-Modus: der VIDEO-Modus glaettet
+    Bewusst im IMAGE-Modus, nicht im VIDEO-Modus: der VIDEO-Modus glättet
     zeitlich (`smooth_landmarks`), und das ist ein Tiefpass auf der Krümmung,
     die R4 fittet. Ausserdem nimmt `detect_for_video` ganzzahlige Millisekunden -
     bei 240 fps sind das 4.17 ms je Frame. Unsere Zeitachse kommt ausschliesslich
     aus den Container-PTS.
     """
+    from pathlib import Path
+
     import mediapipe as mp
     from mediapipe.tasks.python import BaseOptions, vision
-    from pathlib import Path
 
     asset = Path(__file__).parent / "models" / f"pose_landmarker_{model}.task"
     if not asset.exists():

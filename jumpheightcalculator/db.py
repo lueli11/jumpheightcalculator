@@ -18,9 +18,9 @@ CREATE TABLE IF NOT EXISTS video (
     filename    TEXT NOT NULL,
     width       INTEGER, height INTEGER, rotation INTEGER,
     n_frames    INTEGER, duration REAL, fps_measured REAL,
-    -- Vom Nutzer angegebene Aufnahmerate, NULL = nicht angegeben. Gehoert an das
+    -- Vom Nutzer angegebene Aufnahmerate, NULL = nicht angegeben. Gehört an das
     -- Video, nicht an den Lauf: die Zeitachse ist eine Eigenschaft der Datei, und
-    -- zwei Analysen desselben Videos duerfen sich darin nicht widersprechen.
+    -- zwei Analysen desselben Videos dürfen sich darin nicht widersprechen.
     capture_fps REAL,
     created_at  TEXT NOT NULL
 );
@@ -34,9 +34,9 @@ CREATE TABLE IF NOT EXISTS analysis (
     track_path   TEXT,
     proxy_path   TEXT,
     -- Pipeline-Version an jedem Ergebnis: sonst sieht ein Algorithmus-Update im
-    -- Verlauf spaeter aus wie ein Formhoch.
+    -- Verlauf später aus wie ein Formhoch.
     pipeline_version TEXT,
-    result       TEXT,                    -- vollstaendiges Result als JSON
+    result       TEXT,                    -- vollständiges Result als JSON
     quality      REAL,
     h_e2         REAL,                    -- ausgelagert für Verlauf und CSV
     v0           REAL,
@@ -71,7 +71,7 @@ def _migrate(con: sqlite3.Connection) -> None:
     `CREATE TABLE IF NOT EXISTS` greift bei einer bestehenden Datenbank nicht -
     die Tabelle ist ja da, die neue Spalte fehlt trotzdem. Ohne das hier stirbt
     nicht der Start, sondern der erste Upload nach dem Deploy: "table video has
-    no column named capture_fps". Die Datenbank liegt im Volume und ueberlebt
+    no column named capture_fps". Die Datenbank liegt im Volume und überlebt
     jedes Deploy, der Fall ist also der Normalfall.
     """
     for tabelle, spalte, typ in (("video", "capture_fps", "REAL"),):

@@ -32,12 +32,12 @@ JUMP_TYPES = ("cmj", "sj", "drop", "hops")
 
 # Unter dieser Bildrate ist der Fehler laut Fehlerrechnung mehrere Zentimeter -
 # für eine Fortschrittsmessung unbrauchbar. Der Upload wird trotzdem angenommen,
-# aber der Nutzer erfaehrt es sofort statt erst am Ergebnis.
+# aber der Nutzer erfährt es sofort statt erst am Ergebnis.
 FPS_WARN = 120.0
 
 app = FastAPI(title="jumpheightcalculator", version=PIPELINE_VERSION)
 
-# Der Browser laedt das Video **direkt** hierher, nicht über den Next-Proxy.
+# Der Browser lädt das Video **direkt** hierher, nicht über den Next-Proxy.
 # Gemessen riss ein 134-MB-Upload durch den Proxy mit ECONNRESET ab: die Datei
 # kam an, der Browser sah trotzdem einen Fehler und startete die Analyse nie.
 # Ein Puffer weniger, ein Fehlerfall weniger. Offene Herkunft ist vertretbar -
@@ -65,12 +65,12 @@ async def enqueue(analysis_id: str) -> None:
 
     Ist Redis nicht erreichbar, bleibt die Analyse auf `queued` stehen und der
     Upload gilt trotzdem als angenommen. Das ist Absicht: das Video liegt schon
-    auf der Platte, und ein Worker, der spaeter hochkommt, holt die Zeile ab. Ein
-    500 an dieser Stelle wuerde den Nutzer den Upload wiederholen lassen, obwohl
+    auf der Platte, und ein Worker, der später hochkommt, holt die Zeile ab. Ein
+    500 an dieser Stelle würde den Nutzer den Upload wiederholen lassen, obwohl
     nichts verloren ist. Was es **nicht** tut, ist `ready` zu melden.
     """
     try:
-        # Mit Frist: `create_pool` versucht es sonst fuenfmal und blockiert den
+        # Mit Frist: `create_pool` versucht es sonst fünfmal und blockiert den
         # Request rund 25 Sekunden, bevor es aufgibt. Gemessen genau das.
         pool = await asyncio.wait_for(
             create_pool(RedisSettings.from_dsn(REDIS_URL)), timeout=3.0)
@@ -117,28 +117,28 @@ def upload_video(file: UploadFile = File(...),
     # Bewusst **kein** `async def`: die Funktion schreibt eine Datei und ruft
     # ffprobe, beides blockierend. In einer Coroutine liefe das im Event-Loop und
     # legte die ganze API still - auch das Statuspolling anderer Nutzer. Als
-    # gewoehnliche Funktion schiebt FastAPI sie in den Threadpool.
+    # gewöhnliche Funktion schiebt FastAPI sie in den Threadpool.
     vid = uuid.uuid4().hex
     dest = DATA_DIR / "videos" / f"{vid}{Path(file.filename or '').suffix or '.mp4'}"
     dest.parent.mkdir(parents=True, exist_ok=True)
     with dest.open("wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    # Die Aufnahmerate gehoert in **dieselbe** Anfrage. `probe` laeuft hier, und
+    # Die Aufnahmerate gehört in **dieselbe** Anfrage. `probe` läuft hier, und
     # bei einer unplausiblen Zeitbasis fliegt die Datei gleich wieder von der
-    # Platte - ein spaeter nachgereichter Wert kaeme zu spaet.
+    # Platte - ein später nachgereichter Wert käme zu spät.
     if capture_fps is not None and not (MIN_FPS <= capture_fps <= MAX_FPS):
         dest.unlink(missing_ok=True)
         raise HTTPException(
             status_code=422,
             detail=(f"Aufnahmerate {capture_fps:g} fps liegt ausserhalb "
-                    f"{MIN_FPS:.0f}-{MAX_FPS:.0f} fps. Die Höhe haengt quadratisch "
+                    f"{MIN_FPS:.0f}-{MAX_FPS:.0f} fps. Die Höhe hängt quadratisch "
                     f"daran - ein Tippfehler um Faktor 10 gibt Faktor 100."))
     try:
         info = probe(dest, capture_fps=capture_fps)
     except IngestError as e:
         dest.unlink(missing_ok=True)
-        raise HTTPException(status_code=422, detail=str(e))
+        raise HTTPException(status_code=422, detail=str(e)) from e
 
     con.execute(
         "INSERT INTO video (id, path, filename, width, height, rotation, n_frames,"
@@ -179,11 +179,11 @@ async def create_analysis(body: AnalysisIn, con=Depends(get_db)):
 
 
 def _typical_seconds(con) -> float | None:
-    """Wie lange dauert eine Analyse ueblicherweise?
+    """Wie lange dauert eine Analyse üblicherweise?
 
-    Aus den letzten fertigen Laeufen statt aus einer geratenen Konstante - die
-    Laufzeit haengt an Videolaenge, Aufloesung und Maschine, und ein Wert aus der
-    eigenen Vergangenheit trifft das besser als jede Schaetzung im Code.
+    Aus den letzten fertigen Läufen statt aus einer geratenen Konstante - die
+    Laufzeit hängt an Videolänge, Auflösung und Maschine, und ein Wert aus der
+    eigenen Vergangenheit trifft das besser als jede Schätzung im Code.
     """
     rows = con.execute(
         "SELECT created_at, finished_at FROM analysis WHERE status='ready'"
@@ -220,7 +220,7 @@ def get_analysis(aid: str, con=Depends(get_db)):
 
     if d["status"] in ("queued", "running"):
         # Wie viele sind vorher dran? Der Worker arbeitet die Warteschlange nach
-        # Eingang ab (max_jobs=1), also zaehlen genau die frueher angelegten
+        # Eingang ab (max_jobs=1), also zählen genau die früher angelegten
         # Wartenden plus die eine gerade laufende.
         ahead = con.execute(
             "SELECT COUNT(*) c FROM analysis WHERE status='queued' AND created_at < ?",
@@ -242,13 +242,13 @@ async def set_capture_fps(aid: str, body: CaptureFpsIn, con=Depends(get_db)):
 
     Ohne das ist eine Zeitachsen-Verweigerung eine Sackgasse: die App sagt dem
     Nutzer, dass sein Slo-Mo verlangsamt exportiert ist und mit welcher Rate er
-    gefilmt hat - und der einzige Ausweg waere gewesen, dieselben 20-140 MB noch
+    gefilmt hat - und der einzige Ausweg wäre gewesen, dieselben 20-140 MB noch
     einmal hochzuladen. Die Datei liegt schon auf der Platte.
 
-    Der Wert haengt am **Video**, nicht am Lauf: die Zeitachse ist eine
-    Eigenschaft der Datei, und zwei Analysen desselben Videos duerfen sich darin
+    Der Wert hängt am **Video**, nicht am Lauf: die Zeitachse ist eine
+    Eigenschaft der Datei, und zwei Analysen desselben Videos dürfen sich darin
     nicht widersprechen. Track und Vorschau werden verworfen, weil beide auf der
-    alten Achse entstanden sind - der Track traegt sie in `t`, das Proxy in
+    alten Achse entstanden sind - der Track trägt sie in `t`, das Proxy in
     seinen Zeitstempeln.
     """
     row = con.execute("SELECT video_id, track_path, proxy_path FROM analysis "
@@ -286,7 +286,7 @@ def get_track(aid: str, con=Depends(get_db)):
         "contact": td.contact.tolist(),
         "confidence": np.nan_to_num(td.confidence, nan=0.0).tolist(),
         "n0": td.n0, "n1": td.n1, "fps": td.fps,
-        # Das Vorschauvideo behaelt die Container-Zeitstempel. Ist die Achse per
+        # Das Vorschauvideo behält die Container-Zeitstempel. Ist die Achse per
         # Aufnahmerate gestaucht, muss der Client zum Suchen t / time_scale
         # nehmen, sonst springt er um genau diesen Faktor daneben.
         "time_scale": td.time_scale,
@@ -327,13 +327,13 @@ def correct_analysis(aid: str, body: CorrectIn, con=Depends(get_db)):
         res = pipeline.measure(td, jump_type=row["jump_type"], mass_kg=row["mass_kg"],
                                n0=body.takeoff_frame, n1=body.landing_frame)
     except pipeline.Refusal as e:
-        raise HTTPException(422, str(e))
+        raise HTTPException(422, str(e)) from e
 
-    # status auf ready setzen und error loeschen: eine Verweigerung, die der
+    # status auf ready setzen und error löschen: eine Verweigerung, die der
     # Nutzer von Hand korrigiert hat, ist keine Verweigerung mehr.
     # finished_at bleibt stehen: es misst, wie lange der Lauf gedauert hat, und
-    # daraus schaetzt _typical_seconds die Wartezeit. Eine Korrektur kommt oft
-    # erst Minuten spaeter - mitgeschrieben wuerde daraus eine erfundene Laufzeit.
+    # daraus schätzt _typical_seconds die Wartezeit. Eine Korrektur kommt oft
+    # erst Minuten später - mitgeschrieben würde daraus eine erfundene Laufzeit.
     con.execute("UPDATE analysis SET status='ready', error=NULL, result=?, quality=?,"
                 " h_e2=?, v0=? WHERE id=?",
                 (json.dumps(res.to_dict()), res.quality, res.h_e2, res.v0, aid))
@@ -344,7 +344,7 @@ def correct_analysis(aid: str, body: CorrectIn, con=Depends(get_db)):
 @app.get("/api/sessions")
 def sessions(jump_type: str | None = None, as_csv: bool = False, con=Depends(get_db)):
     """Verlauf. Die Pipeline-Version steht bewusst in jeder Zeile: nach einem
-    Algorithmus-Update sind aeltere Werte nicht mehr vergleichbar."""
+    Algorithmus-Update sind ältere Werte nicht mehr vergleichbar."""
     sql = ("SELECT a.id, a.created_at, a.jump_type, a.status, a.quality, a.h_e2, a.v0,"
            " a.pipeline_version, v.filename FROM analysis a"
            " JOIN video v ON v.id = a.video_id WHERE a.status='ready'")
@@ -379,7 +379,7 @@ def root():
 
     Ohne diese Route antwortet FastAPI hier mit {"detail":"Not Found"} - formal
     richtig, aber wer die API-Adresse im Browser aufruft, will wissen, ob sie
-    laeuft, und nicht raten muessen, ob der 404 vom Dienst oder vom Proxy kommt.
+    läuft, und nicht raten müssen, ob der 404 vom Dienst oder vom Proxy kommt.
     """
     return {
         "name": "jumpheightcalculator",

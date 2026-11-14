@@ -1,0 +1,48 @@
+# CI: Lint + schnelle Tests (Backend), Typcheck + Build (Web).
+#
+# Die langsamen Tests (`-m slow`) erzeugen Videos und laufen über eine Minute -
+# die gehören nicht in einen PR-Lauf, sondern in den eigenen Rechner. Playwright
+# braucht laufende Dienste (API, Worker, Web) und wird darum hier nicht gefahren.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          # Python 3.12 ist Pflicht: MediaPipe deklariert nur 3.9-3.12.
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: pip install -e ".[dev]" ruff
+      - name: Lint
+        run: ruff check .
+      - name: Fast tests
+        run: pytest -q -m "not slow"
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Build
+        run: npm run build

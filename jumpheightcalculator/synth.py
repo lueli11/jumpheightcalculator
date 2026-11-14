@@ -1,18 +1,18 @@
 """P0 - Synthetisches Testvideo mit bekannter Wahrheit.
 
 Eine Kugel auf einer exakten Wurfparabel. Es gibt noch keine echten Sprungvideos,
-und ohne Ground Truth laesst sich nicht sagen, ob die Pipeline richtig rechnet
+und ohne Ground Truth lässt sich nicht sagen, ob die Pipeline richtig rechnet
 oder nur plausibel.
 
 Struktur bewusst wie ein Sprung: Ruhephase - Flug - Ruhephase. Damit hat die
-spaetere Kontakt-/Flug-Segmentierung etwas zu tun und der robuste Fit muss die
+spätere Kontakt-/Flug-Segmentierung etwas zu tun und der robuste Fit muss die
 Ruheframes als Ausreisser verwerfen.
 """
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from fractions import Fraction
 from pathlib import Path
 
@@ -29,7 +29,7 @@ TIME_BASE = Fraction(1, 1_000_000)
 
 @dataclass(frozen=True)
 class Truth:
-    """Ground Truth. Alles, was die Pipeline zurückrechnen koennen muss."""
+    """Ground Truth. Alles, was die Pipeline zurückrechnen können muss."""
     h: float                 # Scheitelhöhe über Absprungniveau [m]
     t_f: float               # Flugzeit [s]
     v0: float                # Absprunggeschwindigkeit [m/s]
@@ -61,7 +61,7 @@ def generate(
 ) -> Truth:
     """Schreibt Video + `<name>.truth.json` und gibt die Wahrheit zurück.
 
-    `jitter` streut die Frame-Abstaende um +/- diesen Anteil - damit laesst sich
+    `jitter` streut die Frame-Abstände um +/- diesen Anteil - damit lässt sich
     prüfen, ob R1 wirklich verdrahtet ist. `blur` ist die Belichtungsdauer als
     Anteil des Frame-Abstands.
     """
@@ -80,7 +80,7 @@ def generate(
     # --- Zeitachse. Das ist der eigentliche Gegenstand des Tests. ---
     k = np.arange(n, dtype=np.float64)
     if jitter > 0:
-        # Unabhaengiger Versatz je Frame; bei jitter < 0.5 bleibt die Folge monoton.
+        # Unabhängiger Versatz je Frame; bei jitter < 0.5 bleibt die Folge monoton.
         k = k + rng.uniform(-jitter, jitter, size=n)
         k -= k[0]
     t = k * dt
@@ -101,8 +101,8 @@ def generate(
 
     # --- Frames rendern und mit exakten PTS muxen. ---
     #
-    # Nicht cv2.VideoWriter: das kennt nur eine feste Framerate und wuerde die
-    # Jitter-Zeitachse stillschweigend auf ein gleichmaessiges Raster legen -
+    # Nicht cv2.VideoWriter: das kennt nur eine feste Framerate und würde die
+    # Jitter-Zeitachse stillschweigend auf ein gleichmässiges Raster legen -
     # P0.3 prüfte dann nichts. Nicht der ffmpeg-concat-Demuxer: dessen
     # `duration`-Angaben werden bei Bild-Input ignoriert, gemessen kollabiert
     # alles auf das 25-fps-Standardraster. PyAV setzt die PTS je Frame direkt.
@@ -142,7 +142,7 @@ def generate(
 
 
 def _background(w: int, h: int, ground_y: float, seed: int) -> np.ndarray:
-    """Statischer, texturierter Hintergrund - gibt ORB spaeter etwas zu greifen."""
+    """Statischer, texturierter Hintergrund - gibt ORB später etwas zu greifen."""
     rng = np.random.default_rng(seed + 991)
     bg = np.full((h, w), 205.0)
     bg += rng.normal(0, 7, (h, w))
@@ -156,9 +156,9 @@ def _background(w: int, h: int, ground_y: float, seed: int) -> np.ndarray:
 def _render(bg: np.ndarray, cx: float, cy: float, r: float) -> np.ndarray:
     """Kugel mit Sub-Pixel-Mittelpunkt.
 
-    cv2.circle mit `shift` und LINE_AA zeichnet kantengeglaettet an einer
-    gebrochenen Position. Eine hart gerasterte Kugel wuerde den Schwerpunkt auf
-    ganze Pixel quantisieren - das Rauschen des Tests kaeme dann aus dem
+    cv2.circle mit `shift` und LINE_AA zeichnet kantengeglättet an einer
+    gebrochenen Position. Eine hart gerasterte Kugel würde den Schwerpunkt auf
+    ganze Pixel quantisieren - das Rauschen des Tests käme dann aus dem
     Generator statt aus dem Algorithmus.
     """
     img = bg.copy().astype(np.uint8)

@@ -1,8 +1,8 @@
 import type { MetadataRoute } from "next";
 
-// Nur statische, oeffentlich sinnvolle Seiten. /analysis/[id] gehoert bewusst
+// Nur statische, öffentlich sinnvolle Seiten. /analysis/[id] gehört bewusst
 // nicht hinein: die Seiten entstehen pro Upload, sind nicht auffindbar und
-// haetten fuer eine Suchmaschine keinen Wert.
+// hätten für eine Suchmaschine keinen Wert.
 export const baseUrl =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ??
   "https://jumplab.dokploy.jonasleuenberger.com";

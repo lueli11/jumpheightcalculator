@@ -72,7 +72,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(json.dumps(r.to_dict(), indent=2))
                 return 0
             if r.mode == "flugzeit":
-                # Die Bahn war unbrauchbar. Was bleibt, haengt nur an den zwei
+                # Die Bahn war unbrauchbar. Was bleibt, hängt nur an den zwei
                 # Kontaktframes - und wird auch so benannt.
                 print(f"Sprunghöhe (nur Flugzeit) {r.h_e1*100:7.1f} cm"
                       f"   ÜBERSCHÄTZT, siehe Warnung")
@@ -102,8 +102,8 @@ def main(argv: list[str] | None = None) -> int:
             print()
             print(f"Absprungframe {r.takeoff_frame:.2f}   Landeframe {r.landing_frame:.2f}"
                   f"   Flugframes {r.n_flight_frames}")
-            guete = f"Güte {r.quality:.2f}   R2 {r.r2_hip:.4f}   " if r.quality is not None else ""
-            print(f"{guete}{r.fps_measured:.0f} fps   Pipeline {r.pipeline_version}")
+            güte = f"Güte {r.quality:.2f}   R2 {r.r2_hip:.4f}   " if r.quality is not None else ""
+            print(f"{güte}{r.fps_measured:.0f} fps   Pipeline {r.pipeline_version}")
             for w in r.warnings:
                 print(f"WARNUNG: {w}")
             return 0

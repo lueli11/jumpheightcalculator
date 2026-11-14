@@ -10,7 +10,7 @@ h2 { font-size:17px; margin:22px 0 8px; }
 .panel { background:var(--panel); border:1px solid var(--line); border-radius:6px;
          padding:16px; margin:14px 0; }
 .mono { font-family:ui-monospace,monospace; font-variant-numeric:tabular-nums; }
-/* Der Zurueck-Knopf ist ein <a>, kein <button>: Navigation gehoert einem Link,
+/* Der Zurück-Knopf ist ein <a>, kein <button>: Navigation gehört einem Link,
    damit Mittelklick, neuer Tab und Verlauf funktionieren. Nur das Aussehen
    teilen sie sich. */
 button, a.btn { background:var(--panel); color:var(--ink); border:1px solid var(--line);
@@ -19,10 +19,10 @@ button, a.btn { background:var(--panel); color:var(--ink); border:1px solid var(
 a.btn { display:inline-flex; align-items:center; text-decoration:none; }
 button:hover:not(:disabled), a.btn:hover { border-color:var(--trace); }
 button:disabled { opacity:.45; cursor:not-allowed; }
-/* Auf dem Handy steht die Ergebnisseite ueber zwei Bildschirme (1655 px bei
-   812 px Hoehe), der Knopf oben in der Kopfzeile ist ab dem ersten Wisch weg.
-   Darum dort schwebend unten rechts - auch besser fuer den Daumen. Das
-   padding-bottom von main haelt den Platz dafuer schon frei. */
+/* Auf dem Handy steht die Ergebnisseite über zwei Bildschirme (1655 px bei
+   812 px Höhe), der Knopf oben in der Kopfzeile ist ab dem ersten Wisch weg.
+   Darum dort schwebend unten rechts - auch besser für den Daumen. Das
+   padding-bottom von main hält den Platz dafür schon frei. */
 @media (max-width:879px) {
   a.btn.back { position:fixed; right:14px; bottom:14px; z-index:10;
                box-shadow:0 2px 14px #000a; }
@@ -40,8 +40,8 @@ button:disabled { opacity:.45; cursor:not-allowed; }
 .grid dd.live { color:var(--trace); }
 details { margin:12px 0; }
 details summary { cursor:pointer; color:var(--muted); font-size:14px; padding:6px 0; }
-/* --ar (Breite/Hoehe) kommt inline aus den Trackdaten. Auf dem Handy wird die
-   Buehne ueber die Hoehe begrenzt: ein hochkant gefilmtes Video fuellt sonst
+/* --ar (Breite/Höhe) kommt inline aus den Trackdaten. Auf dem Handy wird die
+   Bühne über die Höhe begrenzt: ein hochkant gefilmtes Video füllt sonst
    allein den ganzen Bildschirm und alles andere liegt darunter. */
 .stage { position:relative; line-height:0; background:#000; border-radius:6px;
          overflow:hidden; width:100%; margin-inline:auto; }
@@ -56,7 +56,7 @@ input[type=file], input[type=number] { color:var(--ink); background:var(--panel)
   min-height:42px; max-width:100%; }
 
 /* Zwei Spalten ab Tablet: sonst steht auf dem Rechner ein hochkant gefilmtes
-   Video als schmale Saeule ueber der halben Seite und alle Zahlen liegen
+   Video als schmale Säule über der halben Seite und alle Zahlen liegen
    darunter - man scrollt zwischen Bild und Werten hin und her. */
 .review { display:grid; gap:20px; }
 @media (min-width:880px) {

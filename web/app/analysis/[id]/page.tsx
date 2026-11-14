@@ -62,7 +62,7 @@ export default function Review() {
         setTrack(tr); setN0(tr.n0); setN1(tr.n1); setFrame(tr.n0);
       } else {
         // Warteschlangenposition und Restzeit kommen aus derselben Antwort -
-        // kein zweiter Aufruf noetig.
+        // kein zweiter Aufruf nötig.
         setQueue({ queue_ahead: r.queue_ahead, eta_seconds: r.eta_seconds,
                    typical_seconds: r.typical_seconds });
         setTimeout(tick, 2000);
@@ -122,7 +122,7 @@ export default function Review() {
         // Zahl kommt. Deckt sie sich nicht mit der Hüfte, stimmt die Zahl nicht.
         //
         // Im Modus "flugzeit" gibt es keinen Fit, also auch nichts zu zeichnen.
-        // Eine Kurve aus null-Koeffizienten waere eine erfundene Kurve.
+        // Eine Kurve aus null-Koeffizienten wäre eine erfundene Kurve.
         const r = result as unknown as Record<string, number>;
         if (typeof r.fit_t_ref === "number") {
         g.strokeStyle = "#3ed0de"; g.lineWidth = 2; g.setLineDash([6, 4]);
@@ -196,8 +196,8 @@ export default function Review() {
     if (body.landing_frame - body.takeoff_frame < 10) return;
 
     // Marker sofort setzen, nicht erst nach der Antwort. Der rote Strich und die
-    // Flugzeit haengen allein an den beiden Frames - beides ist ohne Server
-    // bekannt. Nur die Hoehe braucht einen neuen Fit; die kommt nach.
+    // Flugzeit hängen allein an den beiden Frames - beides ist ohne Server
+    // bekannt. Nur die Höhe braucht einen neuen Fit; die kommt nach.
     setN0(body.takeoff_frame); setN1(body.landing_frame);
     setFrame(dTakeoff !== 0 ? body.takeoff_frame : body.landing_frame);
     setBusy(true);
@@ -210,8 +210,8 @@ export default function Review() {
       if (r.ok) {
         setResult(payload.result); setError(null);
       } else {
-        // Die Marker bleiben stehen, wo sie sind: sonst koennte man sich nicht
-        // schrittweise an eine gueltige Stellung herantasten.
+        // Die Marker bleiben stehen, wo sie sind: sonst könnte man sich nicht
+        // schrittweise an eine gültige Stellung herantasten.
         setResult(null); setError(payload.detail);
       }
     } finally {
@@ -220,7 +220,7 @@ export default function Review() {
   }
 
   // Eine Zeitachsen-Verweigerung passiert schon in `extract`, es gibt also
-  // keinen Track und nichts zu korrigieren - der Nutzer koennte sonst nur neu
+  // keinen Track und nichts zu korrigieren - der Nutzer könnte sonst nur neu
   // hochladen. Die Datei liegt aber noch auf dem Server; hier reicht die Zahl.
   async function nachtragen() {
     if (!fps) return;
@@ -231,7 +231,7 @@ export default function Review() {
         body: JSON.stringify({ capture_fps: Number(fps) }),
       });
       if (!r.ok) throw new Error((await r.json()).detail ?? "abgelehnt");
-      // Neu laden statt Zustand von Hand zurueckdrehen: die Analyse faengt von
+      // Neu laden statt Zustand von Hand zurückdrehen: die Analyse fängt von
       // vorne an, und das Polling auch.
       location.reload();
     } catch (e) {
@@ -248,8 +248,8 @@ export default function Review() {
       hochgeladen werden.
       <div className="row" style={{ marginTop: 10 }}>
         {/* Handys filmen 120 oder 240, nie 129. Die Meldung nennt den passenden
-            Wert; hier ist er ein Klick, damit niemand die geschaetzte Zahl
-            abtippt - die waere quadratisch daneben. */}
+            Wert; hier ist er ein Klick, damit niemand die geschätzte Zahl
+            abtippt - die wäre quadratisch daneben. */}
         {[60, 120, 240].map((v) => (
           <button key={v} onClick={() => setFps(String(v))}
                   style={{ opacity: fps === String(v) ? 1 : 0.65 }}
@@ -316,8 +316,8 @@ export default function Review() {
   const cm = (v: unknown) => (typeof v === "number" ? (v * 100).toFixed(1) : "-");
   const num = (v: unknown, d: number) => (typeof v === "number" ? v.toFixed(d) : "-");
 
-  // Flugzeit sofort aus der PTS-Tabelle: sie haengt nur an den beiden gesetzten
-  // Frames, nicht am Fit. Waehrend der Server neu rechnet, steht hier also schon
+  // Flugzeit sofort aus der PTS-Tabelle: sie hängt nur an den beiden gesetzten
+  // Frames, nicht am Fit. Während der Server neu rechnet, steht hier also schon
   // der richtige Wert, statt dass die Anzeige stehenbleibt.
   const a0 = n0 ?? track.n0;
   const a1 = n1 ?? track.n1;
@@ -332,9 +332,9 @@ export default function Review() {
 
       <div className="review">
         <div className="col-left">
-          {/* Seitenverhaeltnis aus den Trackdaten, nicht aus dem geladenen Video:
-              laedt die Videospur nicht (fehlender Codec, langsames Netz),
-              kollabiert die Buehne sonst und streckt das Overlay. */}
+          {/* Seitenverhältnis aus den Trackdaten, nicht aus dem geladenen Video:
+              lädt die Videospur nicht (fehlender Codec, langsames Netz),
+              kollabiert die Bühne sonst und streckt das Overlay. */}
           <div className="stage"
                style={{ aspectRatio: `${track.width} / ${track.height}`,
                         ["--ar" as string]: track.width / track.height }}>
@@ -400,8 +400,8 @@ export default function Review() {
             <button disabled={busy} onClick={() => correct(0, +1)}>+1</button>
           </div>
 
-          {/* Direkt unter den Korrekturknoepfen, nicht ganz unten: beim
-              Verschieben der Ereignisframes will man sehen, was sich aendert,
+          {/* Direkt unter den Korrekturknöpfen, nicht ganz unten: beim
+              Verschieben der Ereignisframes will man sehen, was sich ändert,
               ohne zu scrollen. Die Flugzeit kommt aus der PTS-Tabelle und steht
               sofort, der Rest folgt mit dem neuen Fit. */}
           <div className="grid" style={{ marginTop: 14 }}>
@@ -461,7 +461,7 @@ export default function Review() {
       )}
 
           {/* Eingeklappt, damit auf dem Handy nicht noch ein Block Scrollweg
-              dazukommt - oeffnet sich von selbst, wenn es Warnungen gibt. */}
+              dazukommt - öffnet sich von selbst, wenn es Warnungen gibt. */}
           <details open={Boolean((result.warnings as string[] | null)?.length)}>
             <summary>Messgüte und Hinweise</summary>
             <p className="sub mono" style={{ fontSize: 13, margin: "6px 0" }}>

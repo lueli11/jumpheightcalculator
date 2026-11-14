@@ -2,23 +2,22 @@
 
 Dient zwei Zwecken: der Kernphysik-Prüfung auf dem synthetischen Testvideo (P0)
 und dem Ballwurf-Test auf echtem Material (P1.4) - laut Konzept die beste
-verfuegbare Referenz, weil sie die Pipeline gegen reine Physik prüft, ohne dass
-jemand springen muss. Kein ML noetig: Schwellwert und Schwerpunkt reichen.
+verfügbare Referenz, weil sie die Pipeline gegen reine Physik prüft, ohne dass
+jemand springen muss. Kein ML nötig: Schwellwert und Schwerpunkt reichen.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
+import dataclasses
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import cv2
 import numpy as np
 
-from . import G, PIPELINE_VERSION
-import dataclasses
-
+from . import PIPELINE_VERSION, G
 from .ingest import VideoInfo, iter_frames, probe
-from .physics import FitError, ParabolaFit, fit_parabola, longest_run
+from .physics import FitError, fit_parabola, longest_run
 
 # Dieselben Grenzen wie in der Sprung-Pipeline - ein Ballwurf-Test, der lockerer
 # geprüft wird als der Sprung, taugt nicht als Referenz für den Sprung.
@@ -50,9 +49,9 @@ class BallResult:
 def track(info: VideoInfo, *, dark: bool = True) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Schwerpunkt der Kugel je Frame. Gibt (t, y, gefunden) zurück.
 
-    Der Schwerpunkt wird intensitaetsgewichtet berechnet, nicht als Mittelpunkt
-    der Bounding Box: eine kantengeglaettete Kugel laesst sich damit auf deutlich
-    unter einem Pixel genau lokalisieren, und genau davon haengt die Krümmung ab.
+    Der Schwerpunkt wird intensitätsgewichtet berechnet, nicht als Mittelpunkt
+    der Bounding Box: eine kantengeglättete Kugel lässt sich damit auf deutlich
+    unter einem Pixel genau lokalisieren, und genau davon hängt die Krümmung ab.
     """
     ys = np.full(info.n_frames, np.nan)
     xs = np.full(info.n_frames, np.nan)
@@ -64,7 +63,7 @@ def track(info: VideoInfo, *, dark: bool = True) -> tuple[np.ndarray, np.ndarray
         if not dark:
             g = 255.0 - g
 
-        # Otsu taugt hier nicht: es trennt die zwei *groessten* Klassen, und das
+        # Otsu taugt hier nicht: es trennt die zwei *grössten* Klassen, und das
         # ist bei einer Bodenlinie im Bild der Boden gegen den Hintergrund - die
         # Kugel fällt dann mit dem Boden in dieselbe Klasse. Sie ist aber das
         # dunkelste Objekt im Bild, also wird relativ zu Minimum und Median
@@ -80,8 +79,8 @@ def track(info: VideoInfo, *, dark: bool = True) -> tuple[np.ndarray, np.ndarray
         cand = [k for k in range(1, n_lab) if stats[k, cv2.CC_STAT_AREA] >= 12]
         if not cand:
             continue
-        # Nicht die groesste Komponente, sondern die dunkelste: eine grosse
-        # Schattenflaeche wäre sonst staerker als die Kugel.
+        # Nicht die grösste Komponente, sondern die dunkelste: eine grosse
+        # Schattenfläche wäre sonst stärker als die Kugel.
         k = min(cand, key=lambda j: float(g[labels == j].mean()))
 
         x0, y0 = stats[k, cv2.CC_STAT_LEFT], stats[k, cv2.CC_STAT_TOP]
@@ -106,7 +105,7 @@ def analyze(path: str | Path, *, seed: int = 0,
             capture_fps: float | None = None) -> BallResult:
     """Kernphysik: Kugel finden, Parabel fitten, selbstkalibrieren.
 
-    `assume_fps` ersetzt die echten Containerzeitstempel durch ein gleichmaessiges
+    `assume_fps` ersetzt die echten Containerzeitstempel durch ein gleichmässiges
     Raster `n/fps` - also genau das, was ein Werkzeug tut, das der Aufnahmemodus-
     Angabe glaubt statt in den Container zu schauen. Das ist **kein** Betriebsmodus,
     sondern die Negativprobe zu R1: sie muss sichtbar danebenliegen, sonst ist
@@ -134,7 +133,7 @@ def analyze(path: str | Path, *, seed: int = 0,
     i0, i1 = longest_run(coarse.inliers)
 
     # R4 - die beiden Randframes raus. Am Übergang ist der Punkt weder Ruhe noch
-    # sauberer Flug (auf echtem Material zusaetzlich bewegungsunscharf), und ein
+    # sauberer Flug (auf echtem Material zusätzlich bewegungsunscharf), und ein
     # einziger solcher Punkt kippt die Krümmung: gemessen 9.797 statt 9.810 m/s^2,
     # also 0.14 % Höhenfehler aus einem einzigen Frame.
     sel = slice(i0 + 1, i1 - 1)
@@ -146,7 +145,7 @@ def analyze(path: str | Path, *, seed: int = 0,
     fit = fit_parabola(tv_all[sel], yv_all[sel], seed=seed)
 
     # Ruheniveau: die Kugel liegt vor und nach dem Flug am Boden, also am
-    # groessten y. Das ist das Bezugsniveau, über dem die Höhe gemessen wird -
+    # grössten y. Das ist das Bezugsniveau, über dem die Höhe gemessen wird -
     # nicht der tiefste Punkt der Parabel.
     yv = yv_all
     y_rest = float(np.median(yv[yv >= yv.max() - 2.0]))
@@ -166,7 +165,7 @@ def analyze(path: str | Path, *, seed: int = 0,
     #
     # Ohne diese Prüfungen gab ein absichtlich schlechtes Video (30 fps, unscharf,
     # verrauscht) glatte 113.67 cm statt der wahren 40.00 aus - eine Zahl, die man
-    # ohne Gegenprobe geglaubt haette. Sichtbar war der Fehler die ganze Zeit: R2
+    # ohne Gegenprobe geglaubt hätte. Sichtbar war der Fehler die ganze Zeit: R2
     # 0.61 gegen 1.00000 beim sauberen Video, und eine rekonstruierte
     # Erdbeschleunigung von 2.28 statt 9.81 m/s^2.
     if fit.r2 < MIN_R2:

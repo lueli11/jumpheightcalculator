@@ -1,11 +1,11 @@
 """Gate P2 - API und Worker.
 
-Der Redis-Rundlauf selbst wird hier **nicht** geprueft: auf dieser Maschine gibt
+Der Redis-Rundlauf selbst wird hier **nicht** geprüft: auf dieser Maschine gibt
 es kein Redis (kein Docker, kein WSL). Getestet wird alles, was danach kommt -
 die Warteschlange ist durch ein aufgezeichnetes `enqueue` ersetzt, und die
 Worker-Funktion wird direkt gerufen. Es ist dieselbe Funktion, die arq aufruft
-(`analyse_job` delegiert unveraendert an `run_analysis`), der Unterschied ist
-also nur der Transport. Der echte Redis-Weg gehoert zu Gate P4 auf dem Server.
+(`analyse_job` delegiert unverändert an `run_analysis`), der Unterschied ist
+also nur der Transport. Der echte Redis-Weg gehört zu Gate P4 auf dem Server.
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ def _same(a: dict, b: dict) -> bool:
 
     `float('nan') != float('nan')` - ohne diese Behandlung meldet ein Vergleich
     Unterschiede, wo keine sind. `shift_residual_px` ist NaN, wenn der Hintergrund
-    zu texturarm fuer eine Bewegungsschaetzung war.
+    zu texturarm für eine Bewegungsschätzung war.
     """
     if a.keys() != b.keys():
         return False
@@ -81,7 +81,7 @@ async def test_health(client):
 @pytest.mark.anyio
 async def test_root_says_what_this_is(client):
     """Die Wurzel darf nicht mit einem nackten 404 antworten - wer die
-    API-Adresse im Browser aufruft, will wissen, ob der Dienst laeuft."""
+    API-Adresse im Browser aufruft, will wissen, ob der Dienst läuft."""
     r = await client.get("/")
     assert r.status_code == 200
     body = r.json()
@@ -107,9 +107,9 @@ async def test_analysis_of_unknown_video_is_404(client, queued):
 async def test_second_upload_does_not_block(client, queued):
     """P2.2 - der zweite Upload darf nicht auf den ersten warten.
 
-    Die Analyse laeuft im Worker; der Request legt nur eine Zeile an und
-    antwortet. Geprueft wird, dass beide Uploads durchgehen und beide Analysen in
-    der Warteschlange landen, ohne dass eine davon gerechnet haette.
+    Die Analyse läuft im Worker; der Request legt nur eine Zeile an und
+    antwortet. Geprüft wird, dass beide Uploads durchgehen und beide Analysen in
+    der Warteschlange landen, ohne dass eine davon gerechnet hätte.
     """
     ids = []
     for _ in range(2):
@@ -127,9 +127,11 @@ async def test_second_upload_does_not_block(client, queued):
 
 
 def _fake_track(n0=40, n1=140, fps=120.0, h_m=0.45, px_per_m=400.0):
-    """Kuenstlicher Track: Huefte auf exakter Parabel, Kontaktsignal als Rechteck."""
+    """Künstlicher Track: Hüfte auf exakter Parabel, Kontaktsignal als Rechteck."""
     import numpy as np
-    from jumpheightcalculator import G, pipeline as pl
+
+    from jumpheightcalculator import G
+    from jumpheightcalculator import pipeline as pl
 
     n = 220
     t = np.arange(n) / fps
@@ -153,9 +155,10 @@ def _fake_track(n0=40, n1=140, fps=120.0, h_m=0.45, px_per_m=400.0):
 @pytest.mark.anyio
 async def test_queue_position_is_reported(client, data_dir):
     """"queued" allein sagt dem Nutzer nichts - er will wissen, wie viele vor ihm
-    sind. Der Worker arbeitet der Reihe nach, also zaehlen die frueher angelegten
+    sind. Der Worker arbeitet der Reihe nach, also zählen die früher angelegten
     Wartenden plus die eine gerade laufende."""
     import uuid
+
     from jumpheightcalculator import db as dbmod
 
     con = dbmod.connect(data_dir / "jumpheightcalculator.sqlite")
@@ -164,19 +167,21 @@ async def test_queue_position_is_reported(client, data_dir):
                 (vid, "x.mp4", "x.mp4", "2026-08-27T10:00:00+00:00"))
     ids = []
     for i, st in enumerate(["running", "queued", "queued", "queued"]):
-        aid = uuid.uuid4().hex; ids.append(aid)
+        aid = uuid.uuid4().hex
+        ids.append(aid)
         con.execute("INSERT INTO analysis (id, video_id, jump_type, status, created_at)"
                     " VALUES (?,?,?,?,?)",
                     (aid, vid, "cmj", st, f"2026-08-27T10:0{i}:00+00:00"))
-    # eine fertige Analyse als Grundlage fuer die Zeitschaetzung
+    # eine fertige Analyse als Grundlage für die Zeitschätzung
     con.execute("INSERT INTO analysis (id, video_id, jump_type, status, created_at,"
                 " finished_at) VALUES (?,?,?,'ready',?,?)",
                 (uuid.uuid4().hex, vid, "cmj", "2026-08-27T09:00:00+00:00",
                  "2026-08-27T09:01:00+00:00"))
-    con.commit(); con.close()
+    con.commit()
+    con.close()
 
     laufend = (await client.get(f"/api/analyses/{ids[0]}")).json()
-    assert laufend["queue_ahead"] == 0            # laeuft schon
+    assert laufend["queue_ahead"] == 0            # läuft schon
 
     erster = (await client.get(f"/api/analyses/{ids[1]}")).json()
     assert erster["queue_ahead"] == 1             # nur der laufende
@@ -192,10 +197,11 @@ async def test_refused_analysis_can_be_corrected_by_hand(client, data_dir):
     """Eine Verweigerung darf keine Sackgasse sein.
 
     Der teure Teil ist gelaufen und der Track liegt vor - der Review-Screen muss
-    die Ereignisframes verschieben koennen und damit aus einem `failed` ein
+    die Ereignisframes verschieben können und damit aus einem `failed` ein
     `ready` machen. Ohne das ist R7 zwar ehrlich, aber unbenutzbar.
     """
     import uuid
+
     from jumpheightcalculator import db as dbmod
 
     aid, vid = uuid.uuid4().hex, uuid.uuid4().hex
@@ -209,9 +215,10 @@ async def test_refused_analysis_can_be_corrected_by_hand(client, data_dir):
     con.execute("INSERT INTO analysis (id, video_id, jump_type, status, error,"
                 " track_path, created_at) VALUES (?,?,?, 'failed', ?, ?, 't')",
                 (aid, vid, "cmj", "Flugzeit ausserhalb des Plausiblen", str(track_path)))
-    con.commit(); con.close()
+    con.commit()
+    con.close()
 
-    # Der Track ist trotz Fehlschlag abrufbar - sonst kaeme der Screen nicht an
+    # Der Track ist trotz Fehlschlag abrufbar - sonst käme der Screen nicht an
     # das Kontaktsignal heran.
     tr = await client.get(f"/api/analyses/{aid}/track")
     assert tr.status_code == 200
@@ -255,17 +262,17 @@ async def test_capture_fps_can_be_added_after_a_refusal(client, data_dir, queued
     row = con.execute("SELECT a.status, a.error, a.track_path, v.capture_fps "
                       "FROM analysis a JOIN video v ON v.id=a.video_id "
                       "WHERE a.id='a1'").fetchone()
-    assert row["capture_fps"] == 120.0, "der Wert gehoert ans Video, nicht an den Lauf"
+    assert row["capture_fps"] == 120.0, "der Wert gehört ans Video, nicht an den Lauf"
     assert row["status"] == "queued" and row["error"] is None
     assert row["track_path"] is None and not spur.exists(), (
-        "der alte Track traegt die alte Zeitachse und muss weg")
+        "der alte Track trägt die alte Zeitachse und muss weg")
     assert queued == ["a1"], "und die Analyse muss wieder in die Warteschlange"
 
-    # Unsinn faellt an derselben Schranke wie beim Upload.
+    # Unsinn fällt an derselben Schranke wie beim Upload.
     for unsinn in (0, -120, 5, 100000):
         bad = await client.post("/api/analyses/a1/capture-fps",
                                 json={"capture_fps": unsinn})
-        assert bad.status_code == 422, f"{unsinn} haette abgelehnt werden muessen"
+        assert bad.status_code == 422, f"{unsinn} hätte abgelehnt werden müssen"
     assert (await client.post("/api/analyses/gibtsnicht/capture-fps",
                               json={"capture_fps": 120})).status_code == 404
     con.close()
@@ -274,12 +281,12 @@ async def test_capture_fps_can_be_added_after_a_refusal(client, data_dir, queued
 @pytest.mark.anyio
 @pytest.mark.skipif(not REAL_VIDEO.exists(), reason="kein echtes Sprungvideo vorhanden")
 async def test_api_result_matches_pipeline(client, data_dir, queued):
-    """P2.1 - was die API ausliefert, ist Zahl fuer Zahl das, was die Pipeline rechnet.
+    """P2.1 - was die API ausliefert, ist Zahl für Zahl das, was die Pipeline rechnet.
 
     Verglichen wird gegen `measure` auf dem gespeicherten Track statt gegen einen
     zweiten vollen Durchlauf: `extract` ist deterministisch (kein RNG), und der
-    NPZ-Rundlauf ist separat als bitgleich geprueft. Ein zweiter voller Lauf
-    kostete vier Minuten und pruefte nichts zusaetzlich.
+    NPZ-Rundlauf ist separat als bitgleich geprüft. Ein zweiter voller Lauf
+    kostete vier Minuten und prüfte nichts zusätzlich.
     """
     with REAL_VIDEO.open("rb") as f:
         up = await client.post("/api/videos", files={"file": (REAL_VIDEO.name, f)})
@@ -305,12 +312,12 @@ async def test_api_result_matches_pipeline(client, data_dir, queued):
                               jump_type="cmj", mass_kg=65).to_dict()
     assert _same(got["result"], direct)
 
-    # /track speist das Overlay und muss zur selben Zeitachse gehoeren.
+    # /track speist das Overlay und muss zur selben Zeitachse gehören.
     tr = (await client.get(f"/api/analyses/{aid}/track")).json()
     assert len(tr["t"]) == len(tr["contact"]) == len(tr["hip_y"])
     assert tr["n0"] < tr["n1"]
 
-    # Eine +/-1-Frame-Korrektur muss den Wert nachweislich veraendern (Basis fuer P3.1).
+    # Eine +/-1-Frame-Korrektur muss den Wert nachweislich verändern (Basis für P3.1).
     before = got["result"]["h_e2"]
     cor = await client.post(f"/api/analyses/{aid}/correct",
                             json={"takeoff_frame": tr["n0"] + 1})

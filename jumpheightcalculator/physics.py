@@ -1,11 +1,11 @@
-"""S4/S5 - Parabel-Fit, Selbstkalibrierung, Höhenschaetzer, Güte.
+"""S4/S5 - Parabel-Fit, Selbstkalibrierung, Höhenschätzer, Güte.
 
 Alle Bildkoordinaten sind Pixel mit **y nach unten**. Ein steigender Körper hat
 also fallendes y, und die Schwerkraft zeigt in +y: der quadratische Koeffizient
 ist positiv.
 
-R4: Der Absprung liegt immer zwischen zwei Frames. Frames zu zaehlen quantisiert
-die Flugzeit; weil h quadratisch von t abhaengt, verdoppelt sich der relative
+R4: Der Absprung liegt immer zwischen zwei Frames. Frames zu zählen quantisiert
+die Flugzeit; weil h quadratisch von t abhängt, verdoppelt sich der relative
 Fehler auf dem Weg zur Höhe. Darum ein Fit über alle sauberen Flugframes und
 Ereigniszeitpunkte als Fliesskommazahlen.
 """
@@ -64,7 +64,7 @@ class ParabolaFit:
         return self.c0 + self.c1 * u + self.c2 * u * u
 
     def v_up_px(self, t: float | np.ndarray) -> np.ndarray:
-        """Aufwaerts-Geschwindigkeit [px/s]; y zeigt nach unten, daher das Minus."""
+        """Aufwärts-Geschwindigkeit [px/s]; y zeigt nach unten, daher das Minus."""
         u = np.asarray(t, float) - self.t_ref
         return -(self.c1 + 2.0 * self.c2 * u)
 
@@ -172,7 +172,7 @@ def _cubic_t_stat(u: np.ndarray, y: np.ndarray) -> float:
 
     Eine echte Wurfparabel hat keine. Eine radiale Objektivverzeichnung macht aus
     ihr eine leicht verbogene Kurve - genau das passiert, wenn die Kamera tief
-    steht und die Hüfte weit ausserhalb der Bildmitte sitzt. Das verfaelscht die
+    steht und die Hüfte weit ausserhalb der Bildmitte sitzt. Das verfälscht die
     Krümmung und über R5 direkt den Massstab, ohne dass R^2 nennenswert fällt.
     """
     if u.size < 6:
@@ -197,12 +197,12 @@ def _cubic_t_stat(u: np.ndarray, y: np.ndarray) -> float:
 
     # Korrektur für autokorrelierte Residuen.
     #
-    # Eine gewoehnliche t-Statistik setzt unabhaengige Residuen voraus. Bei einer
+    # Eine gewöhnliche t-Statistik setzt unabhängige Residuen voraus. Bei einer
     # Trajektorie sind sie das nie: benachbarte Frames zeigen dieselbe Szene, und
-    # ein Pose-Modell traegt seinen Fehler über Frames hinweg mit. Gemessen liegt
+    # ein Pose-Modell trägt seinen Fehler über Frames hinweg mit. Gemessen liegt
     # die Autokorrelation bei Lag 1 auf echtem Material bei +0.75 - es gibt also
-    # rund siebenmal weniger unabhaengige Punkte als Frames, und ein naiver Test
-    # schlaegt an, wo nichts ist (gemessen t = 4.5 auf einer sauberen Bahn).
+    # rund siebenmal weniger unabhängige Punkte als Frames, und ein naiver Test
+    # schlägt an, wo nichts ist (gemessen t = 4.5 auf einer sauberen Bahn).
     #
     # n_eff = n * (1 - rho) / (1 + rho), und t skaliert mit sqrt(n_eff / n).
     r = resid - resid.mean()
@@ -214,7 +214,7 @@ def _cubic_t_stat(u: np.ndarray, y: np.ndarray) -> float:
 
 
 def longest_run(mask: np.ndarray) -> tuple[int, int]:
-    """Laengster zusammenhaengender True-Block als [start, ende) - das Flugfenster."""
+    """Längster zusammenhängender True-Block als [start, ende) - das Flugfenster."""
     best = (0, 0)
     i = 0
     while i < mask.size:

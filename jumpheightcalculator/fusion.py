@@ -1,9 +1,9 @@
 """S3 - Fusion zum Kontaktsignal.
 
 Die Signale beider Zweige werden auf [0,1] normiert und zu einem Kontaktsignal
-c(n) zusammengefuehrt. Darüber läuft ein Zwei-Zustands-HMM mit Viterbi statt
+c(n) zusammengeführt. Darüber läuft ein Zwei-Zustands-HMM mit Viterbi statt
 einer harten Schwelle: eine Schwelle flackert an verrauschten Frames und
-zerlegt den Flug in Stuecke. Viterbi erzwingt eine global konsistente
+zerlegt den Flug in Stücke. Viterbi erzwingt eine global konsistente
 Segmentierung.
 """
 
@@ -29,10 +29,10 @@ def fuse(parts: dict[str, np.ndarray], weights: dict[str, float]) -> np.ndarray:
     1 heisst Kontakt, 0 heisst Flug.
 
     **Die Gewichtssumme ist absichtlich fest.** Ein flaches Signal wird von
-    `normalise` zu Nullen und drueckt das Ergebnis dadurch; naheliegend waere,
+    `normalise` zu Nullen und drückt das Ergebnis dadurch; naheliegend wäre,
     es aus der Summe zu nehmen. Gemessen ist das schlechter: auf einem
-    glaenzenden Hallenboden ist `gap` konstant, das Kontaktsignal ist damit auf
-    0.75 gedeckelt, und dieser Deckel wirkt wie eine hoehere Schwelle. Genau die
+    glänzenden Hallenboden ist `gap` konstant, das Kontaktsignal ist damit auf
+    0.75 gedeckelt, und dieser Deckel wirkt wie eine höhere Schwelle. Genau die
     braucht es auch - der Schuh ist noch im Streifen, wenn er den Boden schon
     verlassen hat. Mit fester Summe traf der Absprung auf IMG_0366 Frame 85 statt
     86 (-1), ohne sie Frame 88 (+2), und die Landung 182 statt 181.
@@ -49,7 +49,7 @@ def fuse(parts: dict[str, np.ndarray], weights: dict[str, float]) -> np.ndarray:
 def viterbi(c: np.ndarray, *, p_stay: float = 0.97, floor: float = 1e-4) -> np.ndarray:
     """Zwei-Zustands-HMM (Flug / Kontakt), Viterbi-Dekodierung.
 
-    Emission direkt aus c(n), Übergaenge mit hoher Selbsthaltewahrscheinlichkeit -
+    Emission direkt aus c(n), Übergänge mit hoher Selbsthaltewahrscheinlichkeit -
     das bestraft Zustandswechsel und verhindert das Flackern.
     """
     c = np.clip(np.asarray(c, float), floor, 1 - floor)
@@ -73,7 +73,7 @@ def viterbi(c: np.ndarray, *, p_stay: float = 0.97, floor: float = 1e-4) -> np.n
 
 
 def flight_window(states: np.ndarray) -> tuple[int, int]:
-    """Laengster zusammenhaengender Flugblock als [n0, n1)."""
+    """Längster zusammenhängender Flugblock als [n0, n1)."""
     best, i = (0, 0), 0
     while i < states.size:
         if states[i] == FLIGHT:

@@ -1,9 +1,9 @@
 """S0 - Ingest und Normalisierung.
 
-R1: Die Zeitachse kommt aus den Praesentationszeitstempeln (PTS) des Containers,
+R1: Die Zeitachse kommt aus den Präsentationszeitstempeln (PTS) des Containers,
 niemals aus einer angenommenen Framerate. Smartphone-Videos sind fast nie exakt
 konstant getaktet, und Slo-Mo wird vom Betriebssystem oft schon verlangsamt
-exportiert. Der Fehler schlaegt quadratisch in die Höhe durch, weil
+exportiert. Der Fehler schlägt quadratisch in die Höhe durch, weil
 
     h = g * v0_px^2 / (2 * a_px^2)
 
@@ -20,9 +20,9 @@ from typing import Iterator
 
 import numpy as np
 
-# B2 - Plausibilitaetsfenster für das mediane Frame-Intervall.
+# B2 - Plausibilitätsfenster für das mediane Frame-Intervall.
 # PTS zu lesen ist notwendig, aber nicht hinreichend: eine bereits verlangsamt
-# exportierte Slo-Mo-Aufnahme traegt PTS über der 8-fachen Realzeit und liefert
+# exportierte Slo-Mo-Aufnahme trägt PTS über der 8-fachen Realzeit und liefert
 # damit lautlos die 64-fache Höhe. Unter 20 fps ist nichts messbar, über
 # 1000 fps existiert keine Handykamera - beides ist also ein Zeitbasis-Fehler.
 MIN_FPS = 20.0
@@ -43,13 +43,13 @@ def _run(cmd: list[str]) -> str:
 @dataclass(frozen=True)
 class VideoInfo:
     path: Path
-    t: np.ndarray          # (N,) Praesentationszeitstempel [s], aus dem Container
+    t: np.ndarray          # (N,) Präsentationszeitstempel [s], aus dem Container
     width: int             # Ausgabebreite nach Rotation
     height: int
     rotation: int          # Grad, aus der Display-Matrix
     nominal_fps: float     # gemeldete Framerate - nur für Anzeige und Warnungen
     # Faktor, mit dem die Container-PTS gestaucht wurden, weil der Nutzer die
-    # Aufnahmerate angegeben hat. 1.0 heisst: unveraendert aus dem Container.
+    # Aufnahmerate angegeben hat. 1.0 heisst: unverändert aus dem Container.
     time_scale: float = 1.0
 
     @property
@@ -70,21 +70,21 @@ def probe(path: str | Path, *, capture_fps: float | None = None) -> VideoInfo:
     """Liest Zeitstempel und Geometrie. Wirft bei unplausibler Zeitbasis (B2).
 
     `capture_fps` ist die **Aufnahme**rate, falls der Nutzer sie kennt. Ein
-    bereits verlangsamt exportiertes Slo-Mo traegt im Container die Abspielrate:
+    bereits verlangsamt exportiertes Slo-Mo trägt im Container die Abspielrate:
     ein mit 120 fps aufgenommenes Video meldet dann 30, und die Zeitachse ist
-    vierfach gestreckt. Die Hoehe faellt dadurch 16-fach daneben, weil sie
-    quadratisch von der Zeitskalierung abhaengt.
+    vierfach gestreckt. Die Höhe fällt dadurch 16-fach daneben, weil sie
+    quadratisch von der Zeitskalierung abhängt.
 
     Die Angabe staucht die Zeitstempel um `container_fps / capture_fps`. Sie
     ersetzt R1 **nicht**: gerechnet wird weiter mit den echten, ungleich
-    verteilten PTS, nur auf der richtigen Skala. Ein konstanter Faktor laesst die
-    Ungleichmaessigkeit unberuehrt.
+    verteilten PTS, nur auf der richtigen Skala. Ein konstanter Faktor lässt die
+    Ungleichmässigkeit unberührt.
 
-    Geprueft wird das Ergebnis, nicht die Eingabe: `_check_timebase` laeuft auf
+    Geprüft wird das Ergebnis, nicht die Eingabe: `_check_timebase` läuft auf
     der **korrigierten** Achse. Wer 5 fps angibt, kommt damit nicht durch. Eine
-    falsche, aber plausible Angabe faengt spaeter die Groessenprobe in
-    `pipeline._check_scale_plausible` ab - der Massstab aus R5 ergaebe dann eine
-    unmoegliche Koerpergroesse.
+    falsche, aber plausible Angabe fängt später die Grössenprobe in
+    `pipeline._check_scale_plausible` ab - der Massstab aus R5 ergäbe dann eine
+    unmögliche Körpergrösse.
     """
     path = Path(path)
     if not path.exists():
@@ -106,7 +106,7 @@ def probe(path: str | Path, *, capture_fps: float | None = None) -> VideoInfo:
         rotation = int(round(float(st["tags"]["rotate"])))
 
     w, h = int(st["width"]), int(st["height"])
-    # ffmpeg dreht beim Decodieren standardmaessig mit (autorotate), die
+    # ffmpeg dreht beim Decodieren standardmässig mit (autorotate), die
     # Ausgabegeometrie ist bei +/-90 Grad also getauscht.
     if rotation % 180 != 0:
         w, h = h, w
@@ -141,20 +141,20 @@ def probe(path: str | Path, *, capture_fps: float | None = None) -> VideoInfo:
 
 
 def _pts(path: Path) -> list[float]:
-    """Die Praesentationszeitstempel, aus dem Container-Index statt aus dem Decoder.
+    """Die Präsentationszeitstempel, aus dem Container-Index statt aus dem Decoder.
 
     `frame=pts_time` **decodiert das ganze Video**, um Zahlen zu lesen, die im
-    Index schon stehen: gemessen 16.5 s fuer 41 MB und 58.1 s fuer 140 MB, bei
+    Index schon stehen: gemessen 16.5 s für 41 MB und 58.1 s für 140 MB, bei
     rund 43 ms je Frame in 4K. Das lief bisher im Upload-Request, der Nutzer sah
-    dafuer eine Minute "laedt hoch". `packet=pts_time` liefert dieselben Werte in
-    0.17 s - auf beiden Videos Wert fuer Wert identisch (402 bzw. 1339 Stueck).
+    dafür eine Minute "lädt hoch". `packet=pts_time` liefert dieselben Werte in
+    0.17 s - auf beiden Videos Wert für Wert identisch (402 bzw. 1339 Stück).
 
     Pakete kommen allerdings in **Decode**-Reihenfolge. Ohne B-Frames ist das
     dasselbe wie die Anzeigereihenfolge (auf beiden Testvideos schon unsortiert
     streng monoton), mit B-Frames nicht. Sortiert wird hier bewusst nicht: eine
     nicht-monotone Liste ist der Hinweis, den `probe` melden soll. Sie ist aber
     kein Grund, ein sonst brauchbares Video abzulehnen - darum in dem Fall der
-    langsame, exakte Weg ueber die Frames, und dessen Ergebnis entscheidet.
+    langsame, exakte Weg über die Frames, und dessen Ergebnis entscheidet.
     """
     def lies(entity: str) -> list[float]:
         raw = _run([
@@ -165,13 +165,13 @@ def _pts(path: Path) -> list[float]:
         return [float(x) for x in raw.split() if x not in ("N/A", "")]
 
     vals = lies("packet")
-    if len(vals) >= 3 and all(b > a for a, b in zip(vals, vals[1:])):
+    if len(vals) >= 3 and all(b > a for a, b in zip(vals, vals[1:], strict=False)):
         return vals
     return lies("frame")
 
 
 def _check_timebase(info: VideoInfo) -> None:
-    """B2 - erste Haelfte: liegt das Frame-Intervall überhaupt im Bereich einer Kamera?"""
+    """B2 - erste Hälfte: liegt das Frame-Intervall überhaupt im Bereich einer Kamera?"""
     fps = info.measured_fps
     if not np.isfinite(fps) or not (MIN_FPS <= fps <= MAX_FPS):
         raise IngestError(
@@ -183,7 +183,7 @@ def _check_timebase(info: VideoInfo) -> None:
 
 
 def scaled_size(info: VideoInfo, scale: float) -> tuple[int, int]:
-    """Geradzahlige Zielgroesse - libav mag ungerade Dimensionen nicht."""
+    """Geradzahlige Zielgrösse - libav mag ungerade Dimensionen nicht."""
     if scale >= 1.0:
         return info.width, info.height
     return max(2, int(info.width * scale) // 2 * 2), max(2, int(info.height * scale) // 2 * 2)
@@ -202,10 +202,10 @@ def iter_frames(info: VideoInfo, *, scale: float = 1.0,
     ohne die Angabe wandelt ffmpeg selbst nach CFR und dupliziert Frames, bis das
     Raster voll ist. Gemessen an einer 135-Frame-Datei kamen so **224422** Frames
     heraus, alle Duplikate des ersten - dieselbe stille Verschiebung, wegen der
-    VideoCapture ausscheidet. Der Abgleich gegen die PTS-Liste unten faengt es ab.
+    VideoCapture ausscheidet. Der Abgleich gegen die PTS-Liste unten fängt es ab.
     """
     if crop is not None:
-        # Ausschnitt in Originalpixeln, vor dem Skalieren. So laesst sich ein
+        # Ausschnitt in Originalpixeln, vor dem Skalieren. So lässt sich ein
         # schmaler Streifen in voller Auflösung lesen, ohne das ganze 4K-Bild
         # durch die Pipe zu schieben.
         cx, cy, cw, ch = crop
@@ -222,7 +222,7 @@ def iter_frames(info: VideoInfo, *, scale: float = 1.0,
     elif (w, h) != (info.width, info.height):
         # Herunterskalieren schon im Decoder: ein 4K-Rohframe ist 25 MB, die
         # Pipe ist sonst der Flaschenhals. Frames werden dabei keine verworfen,
-        # die Zuordnung zu den PTS bleibt also unberuehrt.
+        # die Zuordnung zu den PTS bleibt also unberührt.
         cmd += ["-vf", f"scale={w}:{h}:flags=area"]
     cmd += [
         "-fps_mode", "passthrough",           # Ausgabeoption - muss hinter -i stehen

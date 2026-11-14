@@ -1,8 +1,8 @@
 """Gate P1 - Erkennungs-Pipeline.
 
-P1.1 (Wiederholbarkeit) und P1.3 (Verweigerung) laufen ueber das synthetische
+P1.1 (Wiederholbarkeit) und P1.3 (Verweigerung) laufen über das synthetische
 Video. P1.2 braucht ein echtes Sprungvideo und wird separat gefahren; die reine
-Schaetzer-Algebra ist hier unabhaengig davon geprueft.
+Schätzer-Algebra ist hier unabhängig davon geprüft.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from jumpheightcalculator.ingest import IngestError
 from jumpheightcalculator.physics import FitError, fit_parabola
 
 
-# --- P1.1: zehn Rausch-Seeds, Streuung der Hoehe -------------------------
+# --- P1.1: zehn Rausch-Seeds, Streuung der Höhe -------------------------
 @pytest.mark.slow
 def test_repeatability_under_noise(tmp_path):
     hs = []
@@ -48,12 +48,12 @@ def test_good_video_is_not_refused(tmp_path):
     assert abs(ball.analyze(p).h_e2 - 0.40) < 0.01
 
 
-# --- Schaetzer-Algebra, ohne Video --------------------------------------
+# --- Schätzer-Algebra, ohne Video --------------------------------------
 def _synthetic_jump(h=0.45, drop=0.06, fps=240.0, px_per_m=400.0, noise=0.0, seed=0):
-    """Huefte auf exakter Parabel; Landung `drop` Meter tiefer als der Absprung."""
+    """Hüfte auf exakter Parabel; Landung `drop` Meter tiefer als der Absprung."""
     rng = np.random.default_rng(seed)
     v0 = np.sqrt(2 * G * h)
-    # Landung tiefer: -drop = v0*t - g/2*t^2 nach t aufloesen
+    # Landung tiefer: -drop = v0*t - g/2*t^2 nach t auflösen
     t_land = (v0 + np.sqrt(v0 * v0 + 2 * G * drop)) / G
     t = np.arange(0.0, t_land, 1.0 / fps)
     y_m = v0 * t - 0.5 * G * t * t
@@ -64,9 +64,9 @@ def _synthetic_jump(h=0.45, drop=0.06, fps=240.0, px_per_m=400.0, noise=0.0, see
 def test_e2_equals_v0_squared_over_2g_exactly():
     """B1 - der Grund, weshalb E3 auf anderen Landmarks fitten muss.
 
-    Scheitelhoehe ueber dem Startpunkt und v(t0)^2/(2a) sind fuer jede Parabel
-    dieselbe Zahl. Ein zweiter Schaetzer aus demselben Fit waere ein Duplikat und
-    koennte per Konstruktion keinen Fehler aufdecken.
+    Scheitelhöhe über dem Startpunkt und v(t0)^2/(2a) sind für jede Parabel
+    dieselbe Zahl. Ein zweiter Schätzer aus demselben Fit wäre ein Duplikat und
+    könnte per Konstruktion keinen Fehler aufdecken.
     """
     t, y, _, _ = _synthetic_jump(noise=2.0, seed=3)
     f = fit_parabola(t, y, seed=0)
@@ -77,7 +77,7 @@ def test_e2_equals_v0_squared_over_2g_exactly():
 
 
 def test_flight_time_estimator_overestimates_when_landing_is_lower():
-    """R2 - E1 muss ueberschaetzen, weil man gestreckt abspringt und gebeugt landet."""
+    """R2 - E1 muss überschätzen, weil man gestreckt abspringt und gebeugt landet."""
     h, drop = 0.45, 0.06
     t, y, v0, t_land = _synthetic_jump(h=h, drop=drop)
     f = fit_parabola(t, y, seed=0)
@@ -85,9 +85,9 @@ def test_flight_time_estimator_overestimates_when_landing_is_lower():
     h_e1 = G * t_land ** 2 / 8.0
     h_e2 = (float(f.y_at(0.0)) - f.y_apex) * s
     assert h_e2 == pytest.approx(h, abs=1e-3)
-    assert h_e1 > h_e2, "E1 muss ueber E2 liegen"
-    # Der Ueberschuss ist rund die halbe Absenkung - hier gut 3 cm, genau die
-    # Groessenordnung, die die Literatur fuer die Flugzeitmethode nennt.
+    assert h_e1 > h_e2, "E1 muss über E2 liegen"
+    # Der Überschuss ist rund die halbe Absenkung - hier gut 3 cm, genau die
+    # Grössenordnung, die die Literatur für die Flugzeitmethode nennt.
     assert 0.015 < h_e1 - h_e2 < 0.045
 
 
@@ -103,7 +103,7 @@ def test_delta_recovers_the_landing_drop():
 
 
 def test_e4_equals_e2_plus_delta():
-    """E4 nutzt nur die Fallphase, liegt also systematisch um Delta hoeher."""
+    """E4 nutzt nur die Fallphase, liegt also systematisch um Delta höher."""
     h, drop = 0.45, 0.06
     t, y, _, t_land = _synthetic_jump(h=h, drop=drop)
     f = fit_parabola(t, y, seed=0)
@@ -132,9 +132,9 @@ def test_cubic_test_is_deflated_by_autocorrelation():
     assert fit_parabola(t, ar, seed=0).cubic_t < 4.0
 
 
-# --- Perspektive: Massstabsaenderung waehrend des Flugs ---------------------
+# --- Perspektive: Massstabsänderung während des Flugs ---------------------
 def _track_with_drift(drift: float, spread: float = 0.0):
-    """Kuenstlicher Track; `drift` ist die Groessenaenderung starrer Segmente."""
+    """Künstlicher Track; `drift` ist die Grössenänderung starrer Segmente."""
     from jumpheightcalculator import pipeline as pl
     n, n0, n1, fps = 220, 40, 140, 120.0
     t = np.arange(n) / fps
@@ -142,7 +142,8 @@ def _track_with_drift(drift: float, spread: float = 0.0):
     y = np.full(n, 1000.0)
     u = t[n0:n1] - t[n0]
     y[n0:n1] = 1000.0 - (v0 * u - 0.5 * G * u * u) * 400.0
-    contact = np.ones(n); contact[n0:n1] = 0.0
+    contact = np.ones(n)
+    contact[n0:n1] = 0.0
     return pl.TrackData(
         t=t, xy=np.zeros((n, 33, 2), np.float32), width=540, height=960,
         hip_y=y, com_y=y, ankle_y=y + 150, contact=contact,
@@ -153,15 +154,15 @@ def _track_with_drift(drift: float, spread: float = 0.0):
 
 
 def test_perspective_drift_falls_back_to_flight_time():
-    """Wer auf die Kamera zu springt, aendert den Massstab mitten im Sprung.
+    """Wer auf die Kamera zu springt, ändert den Massstab mitten im Sprung.
 
-    Gemessen an einem echten Video: die Oberschenkel wurden im Flug 33 % laenger
-    im Bild. Ein Knochen waechst nicht - das ist Tiefenbewegung, und damit ist
-    weder die Kruemmung noch die Selbstkalibrierung (R5) noch zu gebrauchen.
+    Gemessen an einem echten Video: die Oberschenkel wurden im Flug 33 % länger
+    im Bild. Ein Knochen wächst nicht - das ist Tiefenbewegung, und damit ist
+    weder die Krümmung noch die Selbstkalibrierung (R5) noch zu gebrauchen.
 
     **E2 ist damit tot, E1 nicht.** In `h = g*t^2/8` steht keine einzige
-    Pixelkoordinate; ob die Person naeher kommt, ist der Flugzeit egal. Frueher
-    gab es hier gar nichts, jetzt die Flugzeit-Hoehe mit Ansage - der Nutzer
+    Pixelkoordinate; ob die Person näher kommt, ist der Flugzeit egal. Früher
+    gab es hier gar nichts, jetzt die Flugzeit-Höhe mit Ansage - der Nutzer
     wollte in erster Linie Absprung, Landung und Flugzeit.
     """
     from jumpheightcalculator.pipeline import measure
@@ -174,20 +175,20 @@ def test_perspective_drift_falls_back_to_flight_time():
 
 
 def test_small_drift_is_accepted():
-    """Gegenprobe - ein sauberes Video streut rund 3 %, das darf nicht stoeren."""
+    """Gegenprobe - ein sauberes Video streut rund 3 %, das darf nicht stören."""
     from jumpheightcalculator.pipeline import measure
     r = measure(_track_with_drift(0.03))
     assert r.h_e2 == pytest.approx(0.45, abs=0.02)
 
 
 def test_uneven_drift_only_warns():
-    """Gegenprobe zur Verweigerung: eine Entfernungsaenderung skaliert **alle**
+    """Gegenprobe zur Verweigerung: eine Entfernungsänderung skaliert **alle**
     starren Segmente gleich. Streuen die vier Werte, ist die Ursache Haltung oder
-    Pose-Rauschen, und eine Verweigerung waere ein Fehlalarm.
+    Pose-Rauschen, und eine Verweigerung wäre ein Fehlalarm.
 
-    Gemessen an IMG_0366: +13 % Aenderung, aber 15 Punkte Spanne ueber die vier
-    Segmente ([7.1, 7.6, 19.1, 22.0]) - waehrend die Person vor dem Sprung und
-    nach der Landung nachweislich gleich weit weg steht (Schulter-Knoechel 150.1
+    Gemessen an IMG_0366: +13 % Aenderung, aber 15 Punkte Spanne über die vier
+    Segmente ([7.1, 7.6, 19.1, 22.0]) - während die Person vor dem Sprung und
+    nach der Landung nachweislich gleich weit weg steht (Schulter-Knöchel 150.1
     gegen 143.5 px). Die saubere Referenz kommt auf 5 Punkte.
     """
     from jumpheightcalculator.pipeline import measure
@@ -197,15 +198,15 @@ def test_uneven_drift_only_warns():
 
 
 def test_unusable_hip_falls_back_to_flight_time():
-    """Der Fall aus der Praxis: die Huefte ist verrauscht, das Timing stimmt.
+    """Der Fall aus der Praxis: die Hüfte ist verrauscht, das Timing stimmt.
 
-    Auf IMG_0366 springt die Huefte in den ersten 35 Flugframes um +-25 px,
+    Auf IMG_0366 springt die Hüfte in den ersten 35 Flugframes um +-25 px,
     obwohl MediaPipe dort Konfidenz 0.92-0.99 meldet - das Modell weiss nicht,
-    dass es danebenliegt. R2 faellt auf 0.9338, und je nach Ausschnitt kommen
+    dass es danebenliegt. R2 fällt auf 0.9338, und je nach Ausschnitt kommen
     42 oder 79 cm heraus. E2 ist damit nicht zu retten.
 
-    Die Kontaktframes sind davon unberuehrt (Absprung 85 gegen von Hand
-    abgelesene 86, Landung 182 exakt), also traegt E1 weiter.
+    Die Kontaktframes sind davon unberührt (Absprung 85 gegen von Hand
+    abgelesene 86, Landung 182 exakt), also trägt E1 weiter.
     """
     from jumpheightcalculator.pipeline import measure
     td = _track_with_drift(0.0)
@@ -218,10 +219,10 @@ def test_unusable_hip_falls_back_to_flight_time():
     td = dataclasses.replace(td, hip_y=kaputt)
 
     r = measure(td)
-    assert r.mode == "flugzeit", "verrauschte Huefte muss auf die Flugzeit zurueckfallen"
+    assert r.mode == "flugzeit", "verrauschte Hüfte muss auf die Flugzeit zurückfallen"
     assert r.h_e2 is None
     assert r.h_e1 == pytest.approx(G * r.t_f ** 2 / 8, rel=1e-9)
-    # Und das Timing kommt unveraendert durch - genau darum geht es.
+    # Und das Timing kommt unverändert durch - genau darum geht es.
     assert r.n_flight_frames == n1 - n0
     assert r.takeoff_frame == pytest.approx(n0, abs=1.0)
     assert r.landing_frame == pytest.approx(n1, abs=1.0)
@@ -230,10 +231,10 @@ def test_unusable_hip_falls_back_to_flight_time():
 def test_suggested_fps_is_a_real_camera_rate():
     """Die Meldung darf keine Bildrate vorschlagen, die es nicht gibt.
 
-    Die Schaetzung kommt aus der Geometrie und unterstellt 1.35 m
-    Schulter-Knoechel, ist also ungenau. Auf IMG_4160 kam 129 heraus - wer das
-    abtippt, bekommt (120/129)^2 = 13 % zu wenig Hoehe, ohne dass es auffaellt.
-    Gerundet wird **relativ**, weil genau das Verhaeltnis quadratisch eingeht.
+    Die Schätzung kommt aus der Geometrie und unterstellt 1.35 m
+    Schulter-Knöchel, ist also ungenau. Auf IMG_4160 kam 129 heraus - wer das
+    abtippt, bekommt (120/129)^2 = 13 % zu wenig Höhe, ohne dass es auffällt.
+    Gerundet wird **relativ**, weil genau das Verhältnis quadratisch eingeht.
     """
     from jumpheightcalculator.pipeline import _nearest_camera_fps, _timebase_advice
     for roh, erwartet in ((129, 120), (118, 120), (235, 240), (61, 60), (29, 30)):
@@ -247,9 +248,9 @@ def test_stretched_timebase_is_refused():
 
     Der Container meldet ehrlich die **Abspiel**rate, nicht die Aufnahmerate. Die
     Bahn bleibt dabei eine saubere Parabel (auf IMG_4160 R2 = 0.996), die
-    Flugzeit sieht nur k-fach zu lang aus - und der Massstab aus R5 faellt um
-    k^2 daneben. Auffliegen kann das nur an der Groesse: auf IMG_4160 ergab die
-    Selbstkalibrierung eine Person von 24 m (Schulter bis Knoechel).
+    Flugzeit sieht nur k-fach zu lang aus - und der Massstab aus R5 fällt um
+    k^2 daneben. Auffliegen kann das nur an der Grösse: auf IMG_4160 ergab die
+    Selbstkalibrierung eine Person von 24 m (Schulter bis Knöchel).
     """
     from jumpheightcalculator import pipeline as pl
     from jumpheightcalculator.pipeline import Refusal, measure
@@ -262,10 +263,11 @@ def test_stretched_timebase_is_refused():
     y = np.full(n, 1000.0)
     u = (t[n0:n1] - t[n0]) / k                     # echte Zeit
     y[n0:n1] = 1000.0 - (v0 * u - 0.5 * G * u * u) * px_per_m
-    contact = np.ones(n); contact[n0:n1] = 0.0
+    contact = np.ones(n)
+    contact[n0:n1] = 0.0
     xy = np.zeros((n, 33, 2), np.float32)
     xy[:, [11, 12], 1] = 400.0                     # Schulter
-    xy[:, [27, 28], 1] = 600.0                     # Knoechel -> 200 px
+    xy[:, [27, 28], 1] = 600.0                     # Knöchel -> 200 px
     td = pl.TrackData(
         t=t, xy=xy, width=540, height=960, hip_y=y, com_y=y, ankle_y=y + 150,
         contact=contact, confidence=np.full(n, 0.9), n0=n0, n1=n1,
@@ -278,7 +280,7 @@ def test_stretched_timebase_is_refused():
 
 def test_contact_and_body_must_agree():
     """Sprung mit Anlauf: der Messstreifen ist leer, weil die Person weggelaufen
-    ist, nicht weil sie fliegt. Gemessen 137 gegen 76 Frames - daraus eine Hoehe
+    ist, nicht weil sie fliegt. Gemessen 137 gegen 76 Frames - daraus eine Höhe
     zu rechnen hiesse raten."""
     from jumpheightcalculator.pipeline import Refusal, measure
     td = _track_with_drift(0.0)

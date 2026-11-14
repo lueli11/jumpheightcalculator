@@ -9,7 +9,7 @@ const CLIP = path.resolve(__dirname, "../../tests/data/jump_clip.mp4");
 test.describe("Review-Screen", () => {
   test.skip(!fs.existsSync(CLIP), "kein Testausschnitt vorhanden");
 
-  test("P3.1 Upload, Ergebnis, und eine Korrektur veraendert die Zahl", async ({ page }) => {
+  test("P3.1 Upload, Ergebnis, und eine Korrektur verändert die Zahl", async ({ page }) => {
     const problems: string[] = [];
     page.on("console", (m) => { if (m.type() === "error") problems.push(m.text()); });
     page.on("pageerror", (e) => problems.push(String(e)));
@@ -35,15 +35,15 @@ test.describe("Review-Screen", () => {
     await expect(page.getByTestId("video")).toBeVisible();
     expect(await page.locator("canvas").count()).toBe(2);
 
-    // Kern von P3.1: eine +/-1-Frame-Korrektur aendert den angezeigten Wert
-    // nachweislich. Bei 120 fps ist ein Frame 8.3 ms, und die Hoehe haengt mit
+    // Kern von P3.1: eine +/-1-Frame-Korrektur ändert den angezeigten Wert
+    // nachweislich. Bei 120 fps ist ein Frame 8.3 ms, und die Höhe hängt mit
     // rund 3.8 cm pro 10 ms am Absprungzeitpunkt - der Effekt muss sichtbar sein.
     await page.getByTestId("takeoff-plus").click();
     await expect.poll(read, { timeout: 30_000 }).not.toBe(before);
 
-    // ... und zurueck fuehrt nicht zwingend exakt auf denselben Wert (der Anker
+    // ... und zurück führt nicht zwingend exakt auf denselben Wert (der Anker
     // ist jetzt ein gesetzter Frame statt eines interpolierten Schnittpunkts),
-    // muss aber wieder in der Naehe liegen.
+    // muss aber wieder in der Nähe liegen.
     await page.getByTestId("takeoff-minus").click();
     await expect.poll(read, { timeout: 30_000 }).toBeGreaterThan(before - 5);
 

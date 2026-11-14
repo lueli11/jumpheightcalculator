@@ -1,7 +1,7 @@
 [project]
 name = "jumpheightcalculator"
 version = "0.1.0"
-description = "Sprunghoehe, Flugzeit und Absprunggeschwindigkeit aus Video"
+description = "Sprunghöhe, Flugzeit und Absprunggeschwindigkeit aus Video"
 requires-python = ">=3.12,<3.13"   # MediaPipe 1.0.1 deklariert 3.9-3.12
 dependencies = [
     "numpy>=2.1",
@@ -16,14 +16,17 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "av>=13", "anyio", "httpx", "trio"]   # av nur fuer den Testvideo-Generator
+dev = ["pytest>=8.0", "av>=13", "anyio", "httpx", "trio"]   # av nur für den Testvideo-Generator
 
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["jumpheightcalculator"]
+# pipeline/ ist seit dem Split ein Paket - beide Listen müssen es nennen,
+# sonst landet nur die Fassade in site-packages und der Worker stirbt beim
+# ersten Job mit ModuleNotFoundError.
+packages = ["jumpheightcalculator", "jumpheightcalculator.pipeline"]
 
 # Das Pose-Modell muss mitinstalliert werden. Ohne diese Zeile landet nur der
 # Python-Code in site-packages, und zur Laufzeit fehlt die .task-Datei - genau
@@ -31,6 +34,21 @@ packages = ["jumpheightcalculator"]
 [tool.setuptools.package-data]
 jumpheightcalculator = ["models/*.task"]
 
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# Bewusst schmal: E/F/W fangen echte Fehler, I hält die Importe lesbar,
+# B fängt fällbare Muster. Stilregeln (UP, RUF, PLW, ...) sind bewusst
+# draussen - der Bestand soll nicht massenhaft angetastet werden.
+select = ["E", "F", "W", "I", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# FastAPI-Idiom: `Depends(...)`/`File(...)` in den Argument-Defaults sind dort
+# der dokumentierte Normalfall, kein Bug.
+"jumpheightcalculator/api.py" = ["B008"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["slow: braucht generierte Videos, laeuft ueber eine Minute"]
+markers = ["slow: braucht generierte Videos, läuft über eine Minute"]

@@ -46,8 +46,8 @@ def estimate_shift(frames: list[np.ndarray], person_box) -> tuple[np.ndarray, fl
     shifts = np.zeros((len(frames), 2), np.float64)
     if d_ref is None or len(k_ref) < 12:
         # Ohne Maske erneut versuchen. Auf einem texturarmen Hintergrund (Turnhalle,
-        # glatte Wand) bleiben sonst zu wenige Ecken uebrig und die Schätzung fällt
-        # ganz aus - die Wackel-Warnung koennte dann nie ausloesen. Die Person ist
+        # glatte Wand) bleiben sonst zu wenige Ecken übrig und die Schätzung fällt
+        # ganz aus - die Wackel-Warnung könnte dann nie auslösen. Die Person ist
         # ein kleiner Teil des Bildes, ihre Bewegung fällt beim Median heraus.
         mask = None
         k_ref, d_ref = orb.detectAndCompute(ref, None)
@@ -99,19 +99,19 @@ def contact_signals(info: VideoInfo, track: PoseTrack, *, stance: slice,
     Landestelle. Gemessen an einem echten Sprung zum Korb landet die Person rund
     eine Fusslänge weiter vorne: der Absprung-Streifen kommt nach der Landung
     nur noch auf 16 statt 96 Belegungseinheiten, und der Wiederkontakt wird
-    dadurch viel zu spaet erkannt - gemessen 1167 ms Flugzeit statt rund 680 ms.
+    dadurch viel zu spät erkannt - gemessen 1167 ms Flugzeit statt rund 680 ms.
     Das Kontaktsignal ist deshalb das Maximum beider Streifen: Kontakt heisst
     "irgendwo steht ein Fuss", nicht "an genau dieser Stelle".
     """
     # Der Streifen sitzt an der Standposition vor der Gegenbewegung.
     #
     # Versucht und wieder verworfen: ihn an den Fuss im Moment des Absprungs zu
-    # legen (0.15 s davor). Das sollte Spruenge mit Anlauf retten, half dort aber
+    # legen (0.15 s davor). Das sollte Sprünge mit Anlauf retten, half dort aber
     # nicht - beim Anlauf ist der Streifen auch vor dem Aufsetzen leer, das Signal
     # bleibt mehrdeutig - und verschlechterte den Normalfall messbar: auf einem
-    # sauberen Sprung kippte damit E1 unter E2, was fuer einen freien Flug
-    # unmoeglich ist. Spruenge mit Anlauf faengt stattdessen die Gegenprobe
-    # zwischen Kontaktsignal und Knoechelhub in der Pipeline ab.
+    # sauberen Sprung kippte damit E1 unter E2, was für einen freien Flug
+    # unmöglich ist. Sprünge mit Anlauf fängt stattdessen die Gegenprobe
+    # zwischen Kontaktsignal und Knöchelhub in der Pipeline ab.
     rois = [_roi_from_stance(track, stance)]
     if landing_stance is not None and landing_stance.stop > landing_stance.start:
         rois.append(_roi_from_stance(track, landing_stance))

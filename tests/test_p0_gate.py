@@ -19,7 +19,7 @@ ASSUMED_FPS = 240.0        # was ein naives Werkzeug dem Aufnahmemodus glaubt
 
 @pytest.fixture(scope="module")
 def clean(tmp_path_factory):
-    """240 fps, rauschfrei, gleichmaessig getaktet."""
+    """240 fps, rauschfrei, gleichmässig getaktet."""
     p = tmp_path_factory.mktemp("p0") / "clean240.mp4"
     return p, synth.generate(p, h=0.40, fps=240, px_per_m=400, seed=1)
 
@@ -34,10 +34,10 @@ def jittered(tmp_path_factory):
 
 # --- P0.1 ---------------------------------------------------------------
 def test_curvature_is_gravity(clean):
-    """Die gefittete Kruemmung muss g ergeben.
+    """Die gefittete Krümmung muss g ergeben.
 
-    Geprueft wird gegen den *bekannten* Massstab des synthetischen Videos, nicht
-    ueber die Selbstkalibrierung: die liefert per Konstruktion 9.81 und wuerde
+    Geprüft wird gegen den *bekannten* Massstab des synthetischen Videos, nicht
+    über die Selbstkalibrierung: die liefert per Konstruktion 9.81 und würde
     damit gar nichts messen.
     """
     path, truth = clean
@@ -76,13 +76,13 @@ def test_variable_framerate_within_two_percent(jittered):
 
 # --- P0.3b: Negativprobe - ohne echte Zeitstempel muss es danebenliegen ---
 def test_nominal_fps_assumption_fails_visibly(jittered):
-    """Beweist, dass R1 wirklich traegt.
+    """Beweist, dass R1 wirklich trägt.
 
     Ohne diesen Gegenlauf zeigt P0.3a nur, dass irgendetwas funktioniert - nicht,
-    dass die Containerzeitstempel dafuer noetig waren. Der gleichverteilte Jitter
-    allein genuegt als Beweis nicht, weil er mittelwertfrei ist: eine angenommene
-    Framerate waere im Mittel trotzdem richtig. Erst wenn die angenommene
-    Framerate von der tatsaechlichen abweicht - der Alltagsfall, das Handy
+    dass die Containerzeitstempel dafür nötig waren. Der gleichverteilte Jitter
+    allein genügt als Beweis nicht, weil er mittelwertfrei ist: eine angenommene
+    Framerate wäre im Mittel trotzdem richtig. Erst wenn die angenommene
+    Framerate von der tatsächlichen abweicht - der Alltagsfall, das Handy
     schreibt "240 fps Slo-Mo" und liefert 200 - wird der Fehler systematisch.
     """
     path, truth = jittered
@@ -98,7 +98,7 @@ def test_nominal_fps_assumption_fails_visibly(jittered):
     # rekonstruiert eine Erdbeschleunigung, die keine ist ...
     assert abs(naive.a_px / truth.px_per_m - G) > 1.0
     # ... und ihr R^2 ist trotzdem ausgezeichnet. Ein Zeitbasis-Fehler ist an der
-    # Fit-Guete grundsaetzlich nicht erkennbar, nur an der Physik.
+    # Fit-Güte grundsätzlich nicht erkennbar, nur an der Physik.
     assert naive.r2 > 0.99
 
 
@@ -136,7 +136,7 @@ def test_stretched_export_is_not_measurable_as_is(stretched):
 
 
 def test_capture_fps_restores_the_truth(stretched):
-    """Mit der richtigen Aufnahmerate kommt dieselbe Hoehe heraus wie im Original.
+    """Mit der richtigen Aufnahmerate kommt dieselbe Höhe heraus wie im Original.
 
     Das ist der ganze Zweck des Schalters. Er ersetzt R1 nicht: gerechnet wird
     weiter mit den echten, ungleich verteilten PTS - nur auf der richtigen Skala.
@@ -144,25 +144,25 @@ def test_capture_fps_restores_the_truth(stretched):
     path, truth = stretched
     r = ball.analyze(path, capture_fps=240.0)
     assert abs(r.h_e2 / truth.h - 1) < 0.02, f"{r.h_e2*100:.2f} cm gegen {truth.h*100:.2f}"
-    # Und die Kruemmung ist wieder g - der eigentliche Beweis, dass die Zeitachse
-    # stimmt. Vorher waere sie um STRETCH^2 = 64 daneben.
+    # Und die Krümmung ist wieder g - der eigentliche Beweis, dass die Zeitachse
+    # stimmt. Vorher wäre sie um STRETCH^2 = 64 daneben.
     assert abs(r.a_px / truth.px_per_m - G) < 0.05
 
 
 def test_wrong_capture_fps_is_wrong_by_the_square(stretched):
     """Gegenprobe: eine falsche Angabe ist quadratisch falsch, nicht harmlos.
 
-    Der Schalter ist eine Tatsachenbehauptung des Nutzers, keine Schaetzung der
-    App - und eine falsche Behauptung kann die Fit-Guete grundsaetzlich nicht
+    Der Schalter ist eine Tatsachenbehauptung des Nutzers, keine Schätzung der
+    App - und eine falsche Behauptung kann die Fit-Güte grundsätzlich nicht
     entdecken (siehe test_nominal_fps_assumption_fails_visibly).
 
     **Der Schutz wirkt nur in eine Richtung.** Zu niedrig angegeben (120 statt
-    240) faengt die Flugzeitgrenze ab: die Flugzeit waere 1142 ms und damit
-    ausserhalb von 150-1100 ms. Zu hoch angegeben (480 statt 240) faellt durch
-    jede Pruefung durch und liefert stillschweigend ein Viertel der Wahrheit -
-    gemessen 10.00 gegen 40.00 cm, bei tadellosem Fit. Fuer den Sprung-Pfad
-    schliesst `pipeline._check_scale_plausible` diese Luecke ueber die
-    Koerpergroesse; die Kugel hat keine bekannte Groesse und damit auch keine
+    240) fängt die Flugzeitgrenze ab: die Flugzeit wäre 1142 ms und damit
+    ausserhalb von 150-1100 ms. Zu hoch angegeben (480 statt 240) fällt durch
+    jede Prüfung durch und liefert stillschweigend ein Viertel der Wahrheit -
+    gemessen 10.00 gegen 40.00 cm, bei tadellosem Fit. Für den Sprung-Pfad
+    schliesst `pipeline._check_scale_plausible` diese Lücke über die
+    Körpergrösse; die Kugel hat keine bekannte Grösse und damit auch keine
     Gegenprobe.
     """
     path, truth = stretched
@@ -172,7 +172,7 @@ def test_wrong_capture_fps_is_wrong_by_the_square(stretched):
 
 
 def test_capture_fps_is_checked_on_the_corrected_axis(stretched):
-    """Unsinn faellt durch dieselbe Schranke wie ein kaputtes Video (B2)."""
+    """Unsinn fällt durch dieselbe Schranke wie ein kaputtes Video (B2)."""
     path, _ = stretched
     for unsinn in (0.0, -240.0, 5.0, 100000.0):
         with pytest.raises(IngestError):
@@ -180,21 +180,21 @@ def test_capture_fps_is_checked_on_the_corrected_axis(stretched):
 
 
 def test_capture_fps_keeps_the_jitter(jittered):
-    """Ein konstanter Faktor darf die Ungleichmaessigkeit nicht glaetten.
+    """Ein konstanter Faktor darf die Ungleichmässigkeit nicht glätten.
 
-    Sonst waere aus der Stauchung heimlich ein Resampling geworden - und genau
-    das gleichmaessige Raster ist der Fehler, gegen den R1 gebaut ist.
+    Sonst wäre aus der Stauchung heimlich ein Resampling geworden - und genau
+    das gleichmässige Raster ist der Fehler, gegen den R1 gebaut ist.
     """
     path, _ = jittered
     a, b = probe(path), probe(path, capture_fps=2 * TRUE_FPS_DRIFT)
     assert b.n_frames == a.n_frames
     # Ein konstanter Faktor: jedes einzelne Frame-Intervall wird mit derselben
     # Zahl multipliziert. Welche Zahl es ist, sagt der Median der Datei (hier
-    # 201.33 gemessene statt 200 nominelle fps) - geprueft wird die Konstanz.
+    # 201.33 gemessene statt 200 nominelle fps) - geprüft wird die Konstanz.
     q = np.diff(b.t) / np.diff(a.t)
     assert np.allclose(q, q[0], rtol=1e-9), "die Stauchung ist kein Resampling"
     # Und der Vertrag: wer 400 fps sagt, bekommt eine Achse, die 400 fps misst.
-    # Nicht das Doppelte der *nominellen* 200 - die Datei laeuft real mit 198.93.
+    # Nicht das Doppelte der *nominellen* 200 - die Datei läuft real mit 198.93.
     assert abs(b.measured_fps - 2 * TRUE_FPS_DRIFT) < 1e-6
 
 
@@ -206,7 +206,7 @@ def test_implausible_timebase_is_refused(tmp_path):
         probe(p)
 
 
-# --- Determinismus: Voraussetzung fuer Gate P2.1 -------------------------
+# --- Determinismus: Voraussetzung für Gate P2.1 -------------------------
 def test_analysis_is_reproducible(clean):
     path, _ = clean
     a, b = ball.analyze(path), ball.analyze(path)

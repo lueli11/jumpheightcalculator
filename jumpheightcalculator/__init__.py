@@ -6,4 +6,4 @@ G = 9.81
 
 PIPELINE_VERSION = "0.2.0-p1"
 """Wird an jedes Ergebnis geschrieben. Ohne das sieht ein Algorithmus-Update
-im Verlauf spaeter aus wie ein Formhoch."""
+im Verlauf später aus wie ein Formhoch."""

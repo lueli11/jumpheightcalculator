@@ -7,7 +7,7 @@ test("P3.2 Overlay ansehen", async ({ page }) => {
   await page.goto(`/analysis/${AID}`);
   await page.getByTestId("height").waitFor({ timeout: 60_000 });
   await page.waitForTimeout(2500);
-  console.log("Hoehe:", await page.getByTestId("height").innerText());
+  console.log("Höhe:", await page.getByTestId("height").innerText());
   await page.locator(".stage").screenshot({ path: "shot-takeoff.png" });
   for (let i = 0; i < 45; i++) await page.getByRole("button", { name: /Frame\s*→/ }).click();
   await page.waitForTimeout(1500);

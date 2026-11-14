@@ -19,7 +19,8 @@ Das ursprüngliche Konzept liegt als `konzept.html` im Repo (Arbeitstitel
 
 ## Vor jeder Änderung lesen
 
-Die Kommentare in `pipeline.py`, `physics.py` und `pixels.py` halten fest, **was
+Die Kommentare in `pipeline/limits.py`, `pipeline/measurement.py`, `physics.py`
+und `pixels.py` halten fest, **was
 schon gemessen und verworfen wurde** — mit Zahlen. Mehrere naheliegende
 „Verbesserungen" wurden ausprobiert und waren nachweislich schlechter. Die
 Begründungen stehen dort, wo man sie brauchen würde, nicht in einem Dokument,
@@ -74,7 +75,13 @@ cd web && npx playwright test                     # braucht laufende Dienste
 | `pixels.py` | S2 | Kontaktsignale im Streifen unter dem Fussballen, Kamerabewegung |
 | `fusion.py` | S3 | Normierung, Zwei-Zustands-HMM mit Viterbi, Sub-Frame-Schnittpunkte |
 | `physics.py` | S4 | RANSAC-Parabel, Selbstkalibrierung, kubischer Residuentest |
-| `pipeline.py` | S4/S5 | `extract` + `measure`, die vier Schätzer, Güte, alle Verweigerungen |
+| `pipeline/limits.py` | S4/S5 | alle Schwellen (Flugzeit, R², Perspektive, Kontaktsignal) mit ihrer Begruendung |
+| `pipeline/track.py` | S4 | `TrackData` - NPZ mit Keypoints, Kontaktsignal, Zeitstempeln |
+| `pipeline/result.py` | S5 | `Result` - Messwerte, Güte, Warnungen, Pipeline-Version |
+| `pipeline/timebase.py` | S4/S5 | `Refusal`/`TrajectoryUnusable`, gestreckte Zeitachse, Massstabsgegenprobe |
+| `pipeline/geometry.py` | S4 | grobes Flugfenster, Standphase, Skalen-Drift |
+| `pipeline/extraction.py` | S4 | `extract` - Decode, Pose, Pixelzweig, Fusion (der teure Teil) |
+| `pipeline/measurement.py` | S5 | `measure` - Fit, die vier Schätzer, Güte, alle Verweigerungen (der billige Teil) |
 | `ball.py` | — | Kugel-Tracker für das synthetische Video und den Ballwurf-Test |
 | `synth.py` | — | Testvideo-Generator mit bekannter Wahrheit |
 | `api.py` | — | FastAPI |

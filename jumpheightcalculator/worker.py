@@ -1,7 +1,7 @@
 """arq-Worker.
 
 Eine Analyse dauert Minuten - das darf keinen HTTP-Request blockieren. Der
-Worker ist bewusst duenn: er ruft dieselbe `pipeline`-Funktion wie die CLI und
+Worker ist bewusst dünn: er ruft dieselbe `pipeline`-Funktion wie die CLI und
 schreibt das Ergebnis in dieselbe Datenbank. Ein zweiter Codepfad wäre eine
 zweite Fehlerquelle, und Gate P2.1 verlangt ohnehin identische Zahlen.
 """
@@ -27,12 +27,12 @@ def _now() -> str:
 
 
 def _make_proxy(src: str, dest: Path, width: int, height: int) -> None:
-    """Vorschauvideo in Arbeitsaufloesung.
+    """Vorschauvideo in Arbeitsauflösung.
 
-    Im Browser laesst sich ein 4K-Video nicht frame-genau steppen. Das Proxy hat
+    Im Browser lässt sich ein 4K-Video nicht frame-genau steppen. Das Proxy hat
     dieselbe Frameanzahl und dieselben Zeitstempel (`-fps_mode passthrough`) und
     liegt in genau der Auflösung, in der auch die Landmarks gelten - das Overlay
-    braucht dadurch keine Umrechnung, in der sich ein Fehler verstecken koennte.
+    braucht dadurch keine Umrechnung, in der sich ein Fehler verstecken könnte.
     """
     try:
         subprocess.run(
@@ -48,7 +48,7 @@ def _make_proxy(src: str, dest: Path, width: int, height: int) -> None:
 
 
 def run_analysis(analysis_id: str, *, data_dir: Path | None = None) -> str:
-    """Die eigentliche Arbeit. Synchron, damit sie sich auch direkt testen laesst."""
+    """Die eigentliche Arbeit. Synchron, damit sie sich auch direkt testen lässt."""
     root = Path(data_dir) if data_dir else DATA_DIR
     con = db.connect(root / "jumpheightcalculator.sqlite")
     try:
@@ -60,7 +60,7 @@ def run_analysis(analysis_id: str, *, data_dir: Path | None = None) -> str:
         if row is None:
             raise KeyError(f"Analyse {analysis_id} unbekannt")
 
-        # Job atomar übernehmen. Ohne die Bedingung auf `queued` koennen zwei
+        # Job atomar übernehmen. Ohne die Bedingung auf `queued` können zwei
         # Worker dieselbe Zeile greifen und beide rechnen - der langsamere
         # überschreibt danach das Ergebnis des schnelleren. Genau das ist beim
         # Testen passiert: dieselbe Datei kam einmal als 74.0 cm und einmal als
@@ -87,8 +87,8 @@ def run_analysis(analysis_id: str, *, data_dir: Path | None = None) -> str:
             # Track und Vorschau auch im Fehlerfall vermerken, sofern sie
             # entstanden sind. Sonst ist eine Verweigerung eine Sackgasse: die
             # teure Extraktion ist gelaufen, das Kontaktsignal liegt vor, aber der
-            # Review-Screen bekaeme nichts zu sehen und koennte die
-            # Ereignisframes nicht von Hand korrigieren - genau wofuer er da ist.
+            # Review-Screen bekäme nichts zu sehen und könnte die
+            # Ereignisframes nicht von Hand korrigieren - genau wofür er da ist.
             con.execute(
                 "UPDATE analysis SET status='failed', error=?, finished_at=?, "
                 "pipeline_version=?, track_path=?, proxy_path=? WHERE id=?",
@@ -115,7 +115,7 @@ def run_analysis(analysis_id: str, *, data_dir: Path | None = None) -> str:
 async def analyse_job(ctx, analysis_id: str) -> str:
     """arq ruft asynchron; die Arbeit selbst ist CPU-gebunden und läuft synchron.
 
-    Der Worker faehrt mit `max_jobs=1` - zwei parallele Analysen wuerden sich auf
+    Der Worker fährt mit `max_jobs=1` - zwei parallele Analysen würden sich auf
     einer CPU nur gegenseitig ausbremsen. Ein zweiter Upload blockiert trotzdem
     nicht: er landet in der Warteschlange und die API antwortet sofort (P2.2).
     """
