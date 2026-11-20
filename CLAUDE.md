@@ -437,7 +437,20 @@ Landmarks gelten — das Overlay braucht dadurch keine Umrechnung.
 
 ---
 
-## Deployment (Dokploy)
+## Deployment (k3s, seit 20.11.2026)
+
+- Live unter https://jumplab.jonasleuenberger.com, Namespace `jumplab` im Homelab-k3s.
+  Manifest `deploy/k3s/jumplab.yaml`, Release `bash deploy/release.sh <tag>` (baut aus `main`
+  auf der Build-VM, Images in zot, Ausrollen per Digest, trägt die Digests ins Manifest ein).
+- Traefik schickt `/api` direkt an `api`, alles andere an `web`. `NEXT_PUBLIC_API_BASE` ist die
+  öffentliche URL (gleiche Herkunft, kein CORS nötig).
+- Cloudflare (orange) lässt höchstens 100 MB pro Anfrage durch. Videos über 50 MB lädt der Browser
+  in Stücken (`POST /api/uploads/{id}`, dann `POST /api/videos` mit `upload_id`). Nicht
+  transkodieren: die Zeitachse kommt aus den Container-Zeitstempeln (R1).
+- Kein Deploy über GitHub Actions: das Repo ist öffentlich, ein Self-hosted Runner würde über
+  Fork-PRs fremden Code auf der Build-VM ausführen.
+
+## Deployment (Dokploy, bis 20.11.2026)
 
 ```bash
 docker compose up --build -d

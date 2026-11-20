@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiBase } from "./api-base";
 
+const CHUNK = 50 * 1024 * 1024;
+
 export default function Upload() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -17,8 +19,24 @@ export default function Upload() {
     if (!input.files?.[0]) return;
     setBusy(true); setErr(null); setWarn(null);
     try {
+      const file = input.files[0];
       const fd = new FormData();
-      fd.append("file", input.files[0]);
+      // Cloudflare lässt höchstens 100 MB pro Anfrage durch: grössere Videos in
+      // Stücken hochladen, der Server setzt sie bitgenau wieder zusammen.
+      if (file.size <= CHUNK) {
+        fd.append("file", file);
+      } else {
+        const id = crypto.randomUUID().replaceAll("-", "");
+        for (let off = 0; off < file.size; off += CHUNK) {
+          const part = new FormData();
+          part.append("offset", String(off));
+          part.append("chunk", file.slice(off, off + CHUNK));
+          const r = await fetch(`${apiBase()}/api/uploads/${id}`, { method: "POST", body: part });
+          if (!r.ok) throw new Error((await r.json()).detail ?? "Upload fehlgeschlagen");
+        }
+        fd.append("upload_id", id);
+        fd.append("filename", file.name);
+      }
       // Nur mitschicken, wenn wirklich etwas drinsteht. Ein leeres Feld heisst
       // "nicht angegeben", nicht "0" - genau wie beim Gewicht.
       if (fps) fd.append("capture_fps", fps);

@@ -11,6 +11,7 @@ import csv
 import io
 import json
 import os
+import re
 import shutil
 import uuid
 from datetime import datetime, timezone
@@ -110,19 +111,64 @@ class CorrectIn(BaseModel):
     landing_frame: int | None = None
 
 
+# Cloudflare (Free) nimmt höchstens 100 MB pro Anfrage an; ein 4K/120-fps-Video
+# hat 140 MB. Grössere Dateien schickt der Browser darum in Stücken. Nicht
+# transkodieren: die Zeitachse kommt aus den Container-Zeitstempeln (R1), ein
+# Re-Encode im Browser würde sie und die Kanten für MediaPipe verändern.
+MAX_UPLOAD = 2 * 1024**3
+UPLOAD_ID = re.compile(r"^[0-9a-f]{32}$")
+
+
+def _part(upload_id: str) -> Path:
+    if not UPLOAD_ID.fullmatch(upload_id):
+        raise HTTPException(status_code=422, detail="Ungültige Upload-ID.")
+    return DATA_DIR / "uploads" / f"{upload_id}.part"
+
+
+@app.post("/api/uploads/{upload_id}")
+def upload_chunk(upload_id: str, offset: int = Form(...),
+                 chunk: UploadFile = File(...)):
+    # ponytail: abgebrochene .part-Dateien bleiben liegen; Aufräumen, wenn es je stört.
+    part = _part(upload_id)
+    part.parent.mkdir(parents=True, exist_ok=True)
+    size = part.stat().st_size if part.exists() else 0
+    # Stücke kommen der Reihe nach. Ein falscher Offset hiesse Lücke oder Doppel.
+    if offset != size:
+        raise HTTPException(status_code=409, detail=f"Offset {offset}, erwartet {size}.")
+    with part.open("ab") as f:
+        shutil.copyfileobj(chunk.file, f)
+        if f.tell() > MAX_UPLOAD:
+            f.close()
+            part.unlink(missing_ok=True)
+            raise HTTPException(status_code=413, detail="Video grösser als 2 GB.")
+    return {"size": part.stat().st_size}
+
+
 @app.post("/api/videos", response_model=VideoOut)
-def upload_video(file: UploadFile = File(...),
+def upload_video(file: UploadFile | None = File(default=None),
+                 upload_id: str | None = Form(default=None),
+                 filename: str | None = Form(default=None),
                  capture_fps: float | None = Form(default=None),
                  con=Depends(get_db)):
     # Bewusst **kein** `async def`: die Funktion schreibt eine Datei und ruft
     # ffprobe, beides blockierend. In einer Coroutine liefe das im Event-Loop und
     # legte die ganze API still - auch das Statuspolling anderer Nutzer. Als
     # gewöhnliche Funktion schiebt FastAPI sie in den Threadpool.
+    if file is None and upload_id is None:
+        raise HTTPException(status_code=422, detail="Kein Video.")
+    name = (file.filename if file else filename) or ""
     vid = uuid.uuid4().hex
-    dest = DATA_DIR / "videos" / f"{vid}{Path(file.filename or '').suffix or '.mp4'}"
+    dest = DATA_DIR / "videos" / f"{vid}{Path(name).suffix or '.mp4'}"
     dest.parent.mkdir(parents=True, exist_ok=True)
-    with dest.open("wb") as f:
-        shutil.copyfileobj(file.file, f)
+    if file is not None:
+        with dest.open("wb") as f:
+            shutil.copyfileobj(file.file, f)
+    else:
+        part = _part(upload_id)
+        if not part.exists():
+            raise HTTPException(status_code=404, detail="Upload unbekannt.")
+        part.replace(dest)
+    file_name = name or dest.name
 
     # Die Aufnahmerate gehört in **dieselbe** Anfrage. `probe` läuft hier, und
     # bei einer unplausiblen Zeitbasis fliegt die Datei gleich wieder von der
@@ -144,7 +190,7 @@ def upload_video(file: UploadFile = File(...),
         "INSERT INTO video (id, path, filename, width, height, rotation, n_frames,"
         " duration, fps_measured, capture_fps, created_at)"
         " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-        (vid, str(dest), file.filename or dest.name, info.width, info.height,
+        (vid, str(dest), file_name, info.width, info.height,
          info.rotation, info.n_frames, info.duration, info.measured_fps,
          capture_fps, _now()))
     con.commit()
@@ -155,7 +201,7 @@ def upload_video(file: UploadFile = File(...),
                    f"Fortschrittsmessung sind mindestens {FPS_WARN:.0f} fps nötig - "
                    f"bitte in Slo-Mo aufnehmen.")
     return VideoOut(video_id=vid, capture_fps=capture_fps,
-                    filename=file.filename or dest.name,
+                    filename=file_name,
                     width=info.width, height=info.height, rotation=info.rotation,
                     n_frames=info.n_frames, duration=info.duration,
                     fps_measured=info.measured_fps, warning=warning)

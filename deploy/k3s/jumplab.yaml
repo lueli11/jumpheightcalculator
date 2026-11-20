@@ -1,0 +1,171 @@
+# JumpLab in k3s: https://jumplab.jonasleuenberger.com
+#
+# Traefik (Vault, Traefik HA statt NPM/hosts.yaml) schickt /api direkt an `api`, alles andere an `web`.
+# Der Upload geht also nicht durch Next (ein 134-MB-Upload riss dort mit ECONNRESET ab). Videos über
+# 50 MB lädt der Browser stückweise hoch, weil Cloudflare nur 100 MB pro Anfrage durchlässt.
+#
+# api, worker und redis teilen sich einen Pod: Das Volume (SQLite + Videos) ist ReadWriteOnce, beide
+# brauchen es. Redis ist nur die Warteschlange, ohne Volume: geht sie verloren, holt der Worker
+# `queued`-Zeilen trotzdem ab (api.enqueue).
+#
+# Einspielen von einer Node: kubectl apply -f deploy/k3s/jumplab.yaml
+# Images: `bash deploy/release.sh <tag>` baut beide aus main, legt sie in zot und setzt sie per Digest,
+# danach trägt es die Digests hier ein (committen). FALLE: apply setzt die Images auf den Stand hier zurück.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jumplab
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data
+  namespace: jumplab
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn
+  resources:
+    requests: {storage: 10Gi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: jumplab
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: Recreate   # RWO-Volume: der alte Pod muss weg, bevor der neue es einhängt
+  selector:
+    matchLabels: {app: api}
+  template:
+    metadata:
+      labels: {app: api}
+    spec:
+      tolerations:
+        - {key: node.kubernetes.io/unreachable, operator: Exists, effect: NoExecute, tolerationSeconds: 30}
+        - {key: node.kubernetes.io/not-ready, operator: Exists, effect: NoExecute, tolerationSeconds: 30}
+      containers:
+        - name: api
+          image: localhost:30500/jumplab-api:start
+          imagePullPolicy: IfNotPresent
+          env: &env
+            - {name: REDIS_URL, value: "redis://localhost:6379"}
+            - {name: JUMPHEIGHTCALCULATOR_DATA, value: /data}
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet: {path: /api/health, port: 8000}
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            requests: {cpu: 50m, memory: 256Mi}
+            limits: {memory: 1Gi}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+        - name: worker
+          image: localhost:30500/jumplab-api:start
+          imagePullPolicy: IfNotPresent
+          command: [arq, jumpheightcalculator.worker.WorkerSettings]
+          env: *env
+          resources:
+            # MediaPipe auf 4K/120 fps, eine Analyse ~3-4 min (max_jobs=1).
+            requests: {cpu: 500m, memory: 1Gi}
+            limits: {memory: 4Gi}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+        - name: redis
+          image: docker.io/library/redis:7-alpine
+          args: [--save, "", --appendonly, "no"]
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {memory: 128Mi}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: data}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: jumplab
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    rollingUpdate: {maxSurge: 1, maxUnavailable: 0}
+  selector:
+    matchLabels: {app: web}
+  template:
+    metadata:
+      labels: {app: web}
+    spec:
+      tolerations:
+        - {key: node.kubernetes.io/unreachable, operator: Exists, effect: NoExecute, tolerationSeconds: 30}
+        - {key: node.kubernetes.io/not-ready, operator: Exists, effect: NoExecute, tolerationSeconds: 30}
+      containers:
+        - name: web
+          image: localhost:30500/jumplab-web:start
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: JUMPHEIGHTCALCULATOR_API, value: "http://api:8000"}
+          ports:
+            - containerPort: 3050
+          readinessProbe:
+            httpGet: {path: /, port: 3050}
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            requests: {cpu: 20m, memory: 96Mi}
+            limits: {memory: 512Mi}
+---
+# Hält beide Images auf jeder Node, damit ein Ersatz-Pod bei Node-Ausfall nicht von zot abhängt.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: image-cache
+  namespace: jumplab
+spec:
+  selector:
+    matchLabels: {app: image-cache}
+  template:
+    metadata:
+      labels: {app: image-cache}
+    spec:
+      terminationGracePeriodSeconds: 1
+      containers:
+        - name: api
+          image: localhost:30500/jumplab-api:start
+          imagePullPolicy: IfNotPresent
+          command: [sleep, infinity]
+          resources:
+            requests: {cpu: 1m, memory: 4Mi}
+            limits: {memory: 16Mi}
+        - name: web
+          image: localhost:30500/jumplab-web:start
+          imagePullPolicy: IfNotPresent
+          command: [sleep, infinity]
+          resources:
+            requests: {cpu: 1m, memory: 4Mi}
+            limits: {memory: 16Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: jumplab
+spec:
+  selector: {app: api}
+  ports:
+    - {port: 8000, targetPort: 8000}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: jumplab
+spec:
+  selector: {app: web}
+  ports:
+    - {port: 3050, targetPort: 3050}
