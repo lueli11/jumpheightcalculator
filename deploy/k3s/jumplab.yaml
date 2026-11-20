@@ -48,7 +48,7 @@ spec:
         - {key: node.kubernetes.io/not-ready, operator: Exists, effect: NoExecute, tolerationSeconds: 30}
       containers:
         - name: api
-          image: localhost:30500/jumplab-api:start
+          image: localhost:30500/jumplab-api@sha256:cc102dc57459da417be2b829494b4f7c4b02c3ecbd84e8cc741e3904c2e94c8e
           imagePullPolicy: IfNotPresent
           env: &env
             - {name: REDIS_URL, value: "redis://localhost:6379"}
@@ -65,7 +65,7 @@ spec:
           volumeMounts:
             - {name: data, mountPath: /data}
         - name: worker
-          image: localhost:30500/jumplab-api:start
+          image: localhost:30500/jumplab-api@sha256:cc102dc57459da417be2b829494b4f7c4b02c3ecbd84e8cc741e3904c2e94c8e
           imagePullPolicy: IfNotPresent
           command: [arq, jumpheightcalculator.worker.WorkerSettings]
           env: *env
@@ -106,7 +106,7 @@ spec:
         - {key: node.kubernetes.io/not-ready, operator: Exists, effect: NoExecute, tolerationSeconds: 30}
       containers:
         - name: web
-          image: localhost:30500/jumplab-web:start
+          image: localhost:30500/jumplab-web@sha256:f5c61fe9d20eafffac57db2c03ad67f624503a4efbdeed0abeac46e6c0a65442
           imagePullPolicy: IfNotPresent
           env:
             - {name: JUMPHEIGHTCALCULATOR_API, value: "http://api:8000"}
@@ -136,14 +136,14 @@ spec:
       terminationGracePeriodSeconds: 1
       containers:
         - name: api
-          image: localhost:30500/jumplab-api:start
+          image: localhost:30500/jumplab-api@sha256:cc102dc57459da417be2b829494b4f7c4b02c3ecbd84e8cc741e3904c2e94c8e
           imagePullPolicy: IfNotPresent
           command: [sleep, infinity]
           resources:
             requests: {cpu: 1m, memory: 4Mi}
             limits: {memory: 16Mi}
         - name: web
-          image: localhost:30500/jumplab-web:start
+          image: localhost:30500/jumplab-web@sha256:f5c61fe9d20eafffac57db2c03ad67f624503a4efbdeed0abeac46e6c0a65442
           imagePullPolicy: IfNotPresent
           command: [sleep, infinity]
           resources:
