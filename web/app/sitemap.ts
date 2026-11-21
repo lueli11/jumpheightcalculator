@@ -5,7 +5,7 @@ import type { MetadataRoute } from "next";
 // hätten für eine Suchmaschine keinen Wert.
 export const baseUrl =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ??
-  "https://jumplab.dokploy.jonasleuenberger.com";
+  "https://jumplab.jonasleuenberger.com";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
